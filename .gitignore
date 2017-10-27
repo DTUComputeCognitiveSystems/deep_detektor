@@ -1,0 +1,6 @@
+# ubuntu temp files
+*~
+*.swp
+
+# other
+.ropeproject*
