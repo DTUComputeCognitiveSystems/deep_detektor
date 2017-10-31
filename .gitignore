@@ -4,3 +4,5 @@
 
 # other
 .ropeproject*
+__pycache__
+.ipynb*
