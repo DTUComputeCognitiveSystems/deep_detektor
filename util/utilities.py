@@ -84,6 +84,7 @@ def data_to_tensors(data, train_indices=None, test_indices=None):
 
     # Bag-Of-Words
     # TODO: Should not retrain bag-of-words for every test/train split?
+    # TODO: Bag-of-words should be in SQL database?
     vectorizer = CountVectorizer()
     X_bow = vectorizer.fit_transform(X)
     data_train['bow'] = X_bow[train_indices, :]
