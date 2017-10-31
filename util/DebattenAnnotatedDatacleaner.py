@@ -111,7 +111,7 @@ class DebattenAnnotatedDatacleaner:
             # Finds first trailing space after index "end_idx" in s
             if end_idx >= len(s):
                 return len(s)
-            elif s[end_idx] is ' ' or end_idx == len(s)-1:
+            elif s[end_idx] is ' ' or end_idx == len(s):
                 return end_idx
             else:
                 return getTailingSpace(s,end_idx+1)
@@ -160,6 +160,45 @@ class DebattenAnnotatedDatacleaner:
             
             
         return sentences_processed, sentences_highlight, sentences_highlight_ind
+    
+    # EXPERIMENTAL!!! Processing multi-claim paragraphs
+    def processMultiClaim(self,s,idx):
+        merge_claims = []
+        for c in range(len(idx)-1):
+            if abs(idx[c][1]-idx[c+1][0]) == 1: #It is the same claim
+                merge_claims.append(True)
+            else:
+                merge_claims.append(False)
+
+        new_s = []
+        new_idx = []
+        for c in range(len(idx)-1):
+            if merge_claims[c]:
+                start_id = idx[c][0]
+                end_id = idx[c+1][1]
+                new_idx.append([start_id, end_id])
+                new_s.append(s[start_id:end_id])
+            else:
+                if c > 0:
+                    new_s.append(' [new claim]: ')
+
+                start_id = idx[c][0]
+                end_id = idx[c][1]
+                new_idx.append([start_id, end_id])
+                new_s.append(s[start_id:end_id])
+
+        if not merge_claims[-1]:
+
+            new_s.append(' [new claim]: ')
+
+            start_id = idx[-1][0]
+            end_id = idx[-1][1]
+            new_idx.append([start_id, end_id])
+            new_s.append(s[start_id:end_id])
+
+
+        new_s = ''.join(new_s)
+        return new_s, new_idx
     
     def getAllCleanedProgramSentences(self,disp=False):
         file_paths = self.getFilePaths()
@@ -211,10 +250,22 @@ class DebattenAnnotatedDatacleaner:
                     data[i][4] = all_highlights[p][si]
                     
                 elif all_highlights_ind[p][si]:
+                    
                     print('HELP')
                     print(all_program_id[p])
+                    #print(all_sentences[p][si])
                     print(all_highlights_ind[p][si])
                     print(all_highlights[p][si])
+                    new_s, new_idx = self.processMultiClaim(all_sentences[p][si],\
+                                                      all_highlights_ind[p][si])
+                    
+                    print('Trying to handle this multi-claim, is the output correct?')
+                    print(new_idx)
+                    print(new_s)
+                    print()
+                    
+                    data[i][3] = new_idx
+                    data[i][4] = new_s
                 
                 i = i+1
             
