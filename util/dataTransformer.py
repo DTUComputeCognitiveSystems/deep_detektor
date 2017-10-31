@@ -47,15 +47,27 @@ class BasePipeline(BaseDataTransformer):
     A pipeline may consist of other pipelines, data transformers or a
     mix of these
     """
-    dataTransformers = []
-
-    # TODO: is this the best way to implement these?
-    inputFormat = None
-    outputFormat = None
 
     def __init__(self, dataTransformers):
+        self.dataTransformers = []
         for dataTransformer in dataTransformers:
             self.addDataTransformer(dataTransformer)
+
+    @property
+    def inputFormat(self):
+        return self._inputFormat
+
+    @inputFormat.setter
+    def inputFormat(self, inputFormat):
+        self._inputFormat = inputFormat
+
+    @property
+    def outputFormat(self):
+        return self._outputFormat
+
+    @outputFormat.setter
+    def outputFormat(self, outputFormat):
+        self._outputFormat = outputFormat
 
     def transform(self, data):
         for dataTransformer in self.dataTransformers:
@@ -70,9 +82,10 @@ class BasePipeline(BaseDataTransformer):
             self.inputFormat = dataTransformer.inputFormat
             self.outputFormat = dataTransformer.outputFormat
         else:
-            if (self.dataTransformers[-1].outputFormat !=
-               dataTransformer.inputFormat):
+            if (self.outputFormat != dataTransformer.inputFormat):
                 print("Error: Output format does not fit to input format")
+                print(self.outputFormat)
+                print(dataTransformer.inputFormat)
             else:
                 dataTransformer.parent = self
                 self.dataTransformers.append(dataTransformer)
@@ -82,6 +95,7 @@ class BasePipeline(BaseDataTransformer):
     def listDataTransformers(self):
         for dataTransformer in self.dataTransformers:
             print(dataTransformer)
+
 
 # Following list describes the available formats
 #
