@@ -4,6 +4,8 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import LeaveOneOut
 from sklearn.feature_extraction.text import CountVectorizer
 import tensorflow as tf
+import nltk
+from nltk.tokenize import word_tokenize, sent_tokenize
 
 def leave_one_program_out_cv(data, model_list, eval_functions=[accuracy_score]):
     # TODO: Change model_list to class_list and initialize objects in model-loop
@@ -44,6 +46,18 @@ def leave_one_program_out_cv(data, model_list, eval_functions=[accuracy_score]):
         p += 1
     return classification_results
 
+def stemmed_bow(X, vectorizer):
+    stemmer = nltk.stem.SnowballStemmer('danish')
+    
+    X_stem = []
+    for paragraf in X:
+        X_stem.append(' '.join([stemmer.stem(el) for el in word_tokenize(paragraf, language='danish')]))
+    
+    return vectorizer.fit_transform(X_stem)
+
+def naive_bow(X, vectorizer):
+    return vectorizer.fit_transform(X)
+	
 
 def data_to_tensors(data, train_indices=None, test_indices=None):
     # TODO: embedding input (string 'bow', 'word2vec', 'glove', ... )
@@ -84,8 +98,15 @@ def data_to_tensors(data, train_indices=None, test_indices=None):
 
     # Bag-Of-Words
     # TODO: Should not retrain bag-of-words for every test/train split?
+    # TODO: Bag-of-words should be in SQL database?
+    # TODO: Switch between different BoW representations
+    # TODO?: Return the features, i.e. vectorizer.get_feature_names()
     vectorizer = CountVectorizer()
-    X_bow = vectorizer.fit_transform(X)
+    #X_bow = naive_bow(X, vectorizer)
+    X_bow = stemmed_bow(X, vectorizer)
+    # Remove words that only occur once
+    X_bow = X_bow[:,np.asarray(np.sum(X_bow, axis=0)>1).reshape(-1, )]
+
     data_train['bow'] = X_bow[train_indices, :]
     if train_indices is not None and test_indices is not None:
         data_test['bow'] = X_bow[test_indices, :]

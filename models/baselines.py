@@ -65,12 +65,14 @@ class MyMLP():
     def __init__(self, hidden_units=2,
                  learning_rate=0.001,
                  training_epochs=10,
-                 verbose=False):
+                 verbose=False,
+                 class_weights=np.array([1.0, 1.0])):
 
         self.learning_rate = learning_rate
         self.hidden_units = hidden_units
         self.training_epochs = training_epochs
         self.verbose = verbose
+        self.class_weights = np.array(class_weights)
 
     def fit(self, data, sess):
         #yy = np.array(data['labels']).astype(float)
@@ -92,8 +94,9 @@ class MyMLP():
         self.z = tf.nn.relu(tf.matmul(self.x, self.Wxz) + self.bz)
         self.pred = tf.nn.sigmoid(tf.matmul(self.z, self.Wzy) + self.by)  # sigmoid
 
-        # Minimize error using cross entropy
-        self.cost = tf.reduce_mean(-self.y * tf.log(self.pred) - (1 - self.y) * tf.log(1 - self.pred))
+        # Minimize error using cross entropy (with class weights)
+        self.cost = tf.reduce_mean(-self.class_weights[1]*self.y * tf.log(self.pred)
+                                   -self.class_weights[0]*(1 - self.y) * tf.log(1 - self.pred))
 
         # Gradient Descent
         self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.cost)
