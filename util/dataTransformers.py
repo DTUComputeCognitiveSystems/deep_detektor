@@ -1,101 +1,10 @@
-from abc import ABC, abstractmethod
-
-# for specific implementations
+from .baseClasses import *
 import os
 import re
 
-class BaseDataTransformer(ABC):
-    """
-    Interface for all data transformations.
-
-    The implementation is based on the composition design pattern with
-    root nodes being concrete transformations and parents in form of pipelines
-    """
-
-    parent = None
-
-    def __init__():
-        pass
-
-    @property
-    @abstractmethod
-    def inputFormat(self):
-        return NotImplemented
-
-    @property
-    @abstractmethod
-    def outputFormat(self):
-        return NotImplemented
-
-    @abstractmethod
-    def transform(self, data):
-        pass
-
-    def listParents(self):
-        if self.parent is not None:
-            print(self.parent)
-            if self.parent.parent is not None:
-                self.parent.listParents()
-        else:
-            print("This is the Root")
-
-
-class BasePipeline(BaseDataTransformer):
-    """
-    Interface for pipelines of several data transformations
-
-    A pipeline may consist of other pipelines, data transformers or a
-    mix of these
-    """
-
-    def __init__(self, dataTransformers):
-        self.dataTransformers = []
-        for dataTransformer in dataTransformers:
-            self.addDataTransformer(dataTransformer)
-
-    @property
-    def inputFormat(self):
-        return self._inputFormat
-
-    @inputFormat.setter
-    def inputFormat(self, inputFormat):
-        self._inputFormat = inputFormat
-
-    @property
-    def outputFormat(self):
-        return self._outputFormat
-
-    @outputFormat.setter
-    def outputFormat(self, outputFormat):
-        self._outputFormat = outputFormat
-
-    def transform(self, data):
-        for dataTransformer in self.dataTransformers:
-            data = dataTransformer.transform(data)
-
-        return data
-
-    def addDataTransformer(self, dataTransformer):
-        # First element
-        if not self.dataTransformers:
-            self.dataTransformers.append(dataTransformer)
-            self.inputFormat = dataTransformer.inputFormat
-            self.outputFormat = dataTransformer.outputFormat
-        else:
-            if (self.outputFormat != dataTransformer.inputFormat):
-                print("Error: Output format does not fit to input format")
-                print(self.outputFormat)
-                print(dataTransformer.inputFormat)
-            else:
-                dataTransformer.parent = self
-                self.dataTransformers.append(dataTransformer)
-                self.outputFormat = dataTransformer.outputFormat
-        return self
-
-    def listDataTransformers(self):
-        for dataTransformer in self.dataTransformers:
-            print(dataTransformer)
-
+# ==============================================================================
+# Specific Concrete Data Transformers Implementations
+# ==============================================================================
 
 # Following list describes the available formats
 #
@@ -105,18 +14,24 @@ class BasePipeline(BaseDataTransformer):
 #   JSONPrograms    : A JSON structure with program_id : sentences as elements
 #   HTMLInput       : sentences formatted in HTML for the annotator program
 #
+# Tensors:
+#   char            : char based representation
+#   PoS             : Part-of-Speech tags
+#   Xbow            : Bag-Of-Words
+#   word2vec        : Word2vec
+#
+#
 
 class fromHTMLSourceToJSONPrograms(BaseDataTransformer):
     """
     Transforms raw html files into JSON of the sentences and timestamps.
     """
 
-    inputFormat = "HTMLSource"
-    outputFormat = "JSONPrograms"
-
     # Initialises class and input, output locations
     def __init__(self):
-        pass
+        inputFormat="HTMLSource"
+        outputFormat="JSONPrograms"
+        super().__init__(inputFormat,outputFormat)
 
     def transform(self, HTMLSource):
         files, program_id = self.getRawFilePaths(HTMLSource.data)
@@ -260,12 +175,12 @@ class fromJSONProgramsToHTMLInput(BaseDataTransformer):
     sentences used as input files for highlighting
     """
 
-    inputFormat="JSONPrograms"
-    outputFormat="HTMLInput"
 
-    # Initialises class and input, output locations
+    # Initializes class and input, output locations
     def __init__(self):
-        pass
+        inputFormat="JSONPrograms"
+        outputFormat="HTMLInput"
+        super().__init__(inputFormat,outputFormat)
 
     def transform(self,JSONPrograms):
         HTMLInput=self.export_debatten_programs(JSONPrograms)
@@ -286,3 +201,4 @@ class fromJSONProgramsToHTMLInput(BaseDataTransformer):
             FormattedSentences[str(p_id)] = programString
 
         return FormattedSentences
+
