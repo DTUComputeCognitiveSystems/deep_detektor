@@ -1,114 +1,50 @@
-# Import
-import numpy as np
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import LeaveOneOut
-from sklearn.feature_extraction.text import CountVectorizer
-import tensorflow as tf
-import nltk
-from nltk.tokenize import word_tokenize, sent_tokenize
+from pathlib import Path
 
-def leave_one_program_out_cv(data, model_list, eval_functions=[accuracy_score]):
-    # TODO: Change model_list to class_list and initialize objects in model-loop
-    # Get program ids and number of programs
-    program_ids = data['data'][:, 2]
-    unique_programs = np.unique(program_ids)
-    NUM_PROGRAMS = len(unique_programs)
-    loo = LeaveOneOut()
-    classification_results = np.empty((NUM_PROGRAMS, len(model_list), len(eval_functions)))
-    classification_results.fill(np.nan)
+import matplotlib.pyplot as plt
 
-    # Loop over programs
-    p = 0
-    for train, test in loo.split(unique_programs):
-        train_idx = program_ids != unique_programs[test]
-        test_idx = program_ids == unique_programs[test]
 
-        print('Welcome to program %i' % (p + 1))
-        print('Number of training examples %i' % (np.sum(train_idx)))
-        print('Number of test examples %i' % (np.sum(test_idx)))
+def get_dir(path):
+    """
+    Returns the directory of a file, or simply the original path if the path is a directory (has no extension)
+    :param Path path:
+    :return: Path
+    """
+    extension = path.suffix
+    if extension == '':
+        return path
+    else:
+        return path.parent
 
-        training_data, test_data = data_to_tensors(data, train_idx, test_idx)
-        m = 0
-        for model in model_list:
-            # Initalizize TF.seesion... and clear previous?
-            tfsess = tf.Session()
-            model.fit(training_data, tfsess)
-            y_pred = model.predict(test_data, tfsess)
-            # Evaluate with eval_functions
-            e = 0
-            for evalf in eval_functions:
-                classification_results[p, m, e] = evalf(test_data['labels'], y_pred)
-                e += 1
 
-            m += 1
+def ensure_folder(*arg):
+    """
+    Ensures the existence of a folder. If the folder does not exist it is created, otherwise nothing happens.
+    :param str | Path arg: Any number of strings of Path-objects which can be combined to a path.
+    """
+    if len(arg) == 0:
+        raise Exception("No input to ensure_folder")
+    path = get_dir(Path(*arg))
+    path.mkdir(parents=True, exist_ok=True)
 
-        print("Done with training and evaluation! ---")
-        p += 1
-    return classification_results
 
-def stemmed_bow(X, vectorizer):
-    stemmer = nltk.stem.SnowballStemmer('danish')
-    
-    X_stem = []
-    for paragraf in X:
-        X_stem.append(' '.join([stemmer.stem(el) for el in word_tokenize(paragraf, language='danish')]))
-    
-    return vectorizer.fit_transform(X_stem)
-
-def naive_bow(X, vectorizer):
-    return vectorizer.fit_transform(X)
-	
-
-def data_to_tensors(data, train_indices=None, test_indices=None):
-    # TODO: embedding input (string 'bow', 'word2vec', 'glove', ... )
-    # Performs neccesary feature extraction and test/training split
-    # Returns data transformed in multiple ways tensors:
-    #    char: Char-based
-    #    pos: Part-of-Speech tagging
-    #    word2vec: Word2vec (or someother subspace..)
-    #    bow: Bag-Of-Words
-    # Furthermore returns for each sample the binary vector y (labels)
-
-    data_train = dict()
-    data_test = dict()
-
-    # Extract relevant data from table
-    X = data['data'][:, 4]  # sentences
-    y = data['data'][:, 6]  # claim indices
-    N = len(X)
-
-    # If no test/train split is specified return everything in training
-    if train_indices is None and test_indices is None:
-        train_indices = np.ones(N, dtype=bool)
-
-    # Pr. sample label-vector
-    y = np.asarray([y[i] is not None for i in range(N)])
-    data_train['labels'] = y[train_indices]
-    if train_indices is not None and test_indices is not None:
-        data_test['labels'] = y[test_indices]
-
-    # Char
-    # ...
-
-    # Pos
-    # ...
-
-    # Word2Vec
-    # ...
-
-    # Bag-Of-Words
-    # TODO: Should not retrain bag-of-words for every test/train split?
-    # TODO: Bag-of-words should be in SQL database?
-    # TODO: Switch between different BoW representations
-    # TODO?: Return the features, i.e. vectorizer.get_feature_names()
-    vectorizer = CountVectorizer()
-    #X_bow = naive_bow(X, vectorizer)
-    X_bow = stemmed_bow(X, vectorizer)
-    # Remove words that only occur once
-    X_bow = X_bow[:,np.asarray(np.sum(X_bow, axis=0)>1).reshape(-1, )]
-
-    data_train['bow'] = X_bow[train_indices, :]
-    if train_indices is not None and test_indices is not None:
-        data_test['bow'] = X_bow[test_indices, :]
-
-    return data_train, data_test
+def save_fig(path, only_png=False, only_pdf=False, dpi=None, bbox_inches="tight",
+             facecolor=None):
+    """
+    Save figure as pdf and png, with the same
+    :param facecolor:
+    :param int dpi: Dots per inch for the png image
+    :param bool only_pdf:
+    :param bool only_png:
+    :param Path path: Path to save on, with filename but without extension
+    """
+    options = dict(bbox_inches=bbox_inches)
+    if facecolor is not None:
+        options["facecolor"] = facecolor
+    if not only_pdf:
+        if dpi is None:
+            plt.savefig(str(Path(str(path) + '.png')), **options)
+        else:
+            plt.savefig(str(Path(str(path) + '.png')), dpi=dpi, **options)
+    if not only_png:
+        fig = plt.gcf()
+        fig.savefig(str(path) + '.pdf', format='pdf', pad_inches=0, **options)  # , dpi=axes_dpi
