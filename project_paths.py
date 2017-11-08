@@ -1,6 +1,11 @@
 from pathlib import Path
 
-deep_fact_dir = Path("data", "DeepFactData")
+# Main data-directory
+data_dir = Path("..", "data")
+
+# Two main directories for data
+deep_fact_dir = Path(data_dir, "DeepFactData")
+dr_detektor_automatic_fact_checking_dir = Path(data_dir, "DRDetektorAutomaticFactChecking")
 
 # Data from data-cleaning
 data_matrix_path = Path(deep_fact_dir, "annotated", "data_matrix_sample_programs.csv")
