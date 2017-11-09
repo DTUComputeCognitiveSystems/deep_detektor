@@ -6,8 +6,11 @@ from models.model_base import DetektorModel
 
 
 class LogisticRegression(DetektorModel):
+    @classmethod
+    def name(cls):
+        return "LogisticRegression"
+
     def __init__(self, learning_rate=0.001, training_epochs=10, verbose=False):
-        super().__init__("LogisticRegression")
         self.learning_rate = learning_rate
         self.training_epochs = training_epochs
         self.verbose = verbose
@@ -68,12 +71,15 @@ class LogisticRegression(DetektorModel):
 
 
 class MLP(DetektorModel):
+    @classmethod
+    def name(cls):
+        return "MLP"
+
     def __init__(self, hidden_units=2,
                  learning_rate=0.001,
                  training_epochs=10,
                  verbose=False,
                  class_weights=np.array([1.0, 1.0])):
-        super().__init__("MLP")
 
         self.learning_rate = learning_rate
         self.hidden_units = hidden_units

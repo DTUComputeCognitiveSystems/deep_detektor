@@ -1,8 +1,10 @@
+import abc
 
 
 class DetektorModel:
-    def __init__(self, name):
-        self.name = name
+    @classmethod
+    def name(cls):
+        raise NotImplementedError
 
     def fit(self, data, sess, indentation=0, is_batch=False):
         raise NotImplementedError
