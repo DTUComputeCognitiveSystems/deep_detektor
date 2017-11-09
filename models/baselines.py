@@ -2,17 +2,17 @@
 import tensorflow as tf
 import numpy as np
 
+from models.model_base import DetektorModel
 
-class MyLogisticRegression:
-    def __init__(self, learning_rate=0.001,
-                 training_epochs=10,
-                 verbose=False):
 
+class LogisticRegression(DetektorModel):
+    def __init__(self, learning_rate=0.001, training_epochs=10, verbose=False):
+        super().__init__("LogisticRegression")
         self.learning_rate = learning_rate
         self.training_epochs = training_epochs
         self.verbose = verbose
 
-    def fit(self, data, sess):
+    def fit(self, data, sess, **kwargs):
         num_features = data['bow'].shape[1]
 
         # TODO: Model definition and fields should be created in initializer (Python standard)
@@ -69,12 +69,13 @@ class MyLogisticRegression:
         return ll > 0.5
 
 
-class MyMLP:
+class MLP(DetektorModel):
     def __init__(self, hidden_units=2,
                  learning_rate=0.001,
                  training_epochs=10,
                  verbose=False,
                  class_weights=np.array([1.0, 1.0])):
+        super().__init__("MLP")
 
         self.learning_rate = learning_rate
         self.hidden_units = hidden_units
@@ -82,7 +83,7 @@ class MyMLP:
         self.verbose = verbose
         self.class_weights = np.array(class_weights)
 
-    def fit(self, data, sess):
+    def fit(self, data, sess, **kwargs):
         # yy = np.array(data['labels']).astype(float)
 
         num_features = data['bow'].shape[1]
