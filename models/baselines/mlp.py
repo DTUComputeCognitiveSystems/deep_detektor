@@ -1,0 +1,89 @@
+import numpy as np
+import tensorflow as tf
+
+from models.model_base import DetektorModel
+
+
+class MLP(DetektorModel):
+    @classmethod
+    def name(cls):
+        return "MLP"
+
+    def __init__(self, hidden_units=2,
+                 learning_rate=0.001,
+                 training_epochs=10,
+                 verbose=False,
+                 class_weights=np.array([1.0, 1.0])):
+
+        self.learning_rate = learning_rate
+        self.hidden_units = hidden_units
+        self.training_epochs = training_epochs
+        self.verbose = verbose
+        self.class_weights = np.array(class_weights)
+
+    def fit(self, tensor_provider, train_idx, sess, indentation=0):
+        # Get training data
+        data = tensor_provider.load_data_tensors(train_idx,
+                                                 word_embedding=False,
+                                                 char_embedding=False,
+                                                 pos_tags=False)
+
+        # Get BoW features
+        num_features = data['bow'].shape[1]
+
+        # TODO: Model definition and fields should be created in initializer (Python standard)
+
+        # tf Graph Input
+        self.x = tf.placeholder(tf.float32, [None, num_features])
+        self.y = tf.placeholder(tf.float32, [None, ])  # binary classification
+
+        # Set model weights
+        self.Wxz = tf.Variable(tf.zeros([num_features, self.hidden_units]))
+        self.bz = tf.Variable(tf.zeros([self.hidden_units]))
+        self.Wzy = tf.Variable(tf.zeros([self.hidden_units, 1]))
+        self.by = tf.Variable(tf.zeros([1]))
+
+        # Construct model
+        self.z = tf.nn.relu(tf.matmul(self.x, self.Wxz) + self.bz)
+        self.pred = tf.nn.sigmoid(tf.matmul(self.z, self.Wzy) + self.by)  # sigmoid
+
+        # Minimize error using cross entropy (with class weights)
+        self.cost = tf.reduce_mean(-self.class_weights[1] * self.y * tf.log(self.pred)
+                                   - self.class_weights[0] * (1 - self.y) * tf.log(1 - self.pred))
+
+        # Gradient Descent
+        self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.cost)
+
+        # Display options
+        display_step = 1
+
+        # Initialize the variables (i.e. assign their default value)
+        self.initializer = tf.global_variables_initializer()
+
+        # # Start training
+        # Run the initializer
+        sess.run(self.initializer)
+
+        # Data
+        x = data['bow']
+        if not isinstance(x, np.ndarray):
+            x = x.todense()
+        y = data['labels']
+
+        # Training cycle
+        for epoch in range(self.training_epochs):
+            _, c = sess.run([self.optimizer, self.cost], feed_dict={self.x: x,
+                                                                    self.y: y})
+            # Display logs per epoch step
+            if (epoch + 1) % display_step == 0 and self.verbose:
+                print(indentation * " " + "\tEpoch:", '%04d' % (epoch + 1), "cost=", "{:.9f}".format(c))
+
+        print(indentation * " " + "Optimization Finished!")
+
+    def predict(self, data, sess):
+        # yy = np.array(data['labels']).astype(float)
+        x = data['bow']
+        if not isinstance(x, np.ndarray):
+            x = x.todense()
+        ll = sess.run(self.pred, feed_dict={self.x: x})
+        return ll > 0.5

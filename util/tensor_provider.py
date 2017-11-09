@@ -109,10 +109,14 @@ class TensorProvider:
 
         # The set of known words
         if self.bow_transformer is None:
-            self.complete_bow_vocabulary = self.vocabulary
+            self._complete_bow_vocabulary = self.vocabulary
         else:
             bow_vocabulary = {self.bow_transformer(word) for word in self.vocabulary.keys()}
-            self.complete_bow_vocabulary = {word: idx for idx, word in enumerate(sorted(list(bow_vocabulary)))}
+            self._complete_bow_vocabulary = {word: idx for idx, word in enumerate(sorted(list(bow_vocabulary)))}
+        self.bow_vocabulary = self._complete_bow_vocabulary
+
+    def set_bow_vocabulary(self, vocabulary=None):
+        self.bow_vocabulary = self._complete_bow_vocabulary if vocabulary is None else vocabulary
 
     def _get_known_word(self, word: str):
         operations = [
@@ -187,21 +191,19 @@ class TensorProvider:
 
         return out_array
 
-    def _get_bow_tensors(self, tokens, bow_vocabulary=None):
-        if bow_vocabulary is None:
-            bow_vocabulary = self.complete_bow_vocabulary
+    def _get_bow_tensors(self, tokens):
 
         # Transform data if wanted
         if self.bow_transformer is not None:
             tokens = [[self.bow_transformer(word) for word in text] for text in tokens]
 
         # Initialize array
-        out_array = np.full((len(tokens), len(bow_vocabulary)), 0)
+        out_array = np.full((len(tokens), len(self.bow_vocabulary)), 0)
 
         # Go through texts and words
         for text_nr, text in enumerate(tokens):
             text_bow = Counter()
-            text_bow.update([bow_vocabulary[word] for word in text if word in bow_vocabulary])
+            text_bow.update([self.bow_vocabulary[word] for word in text if word in self.bow_vocabulary])
             word_idxs, word_counts = zip(*text_bow.items())
 
             out_array[text_nr, word_idxs] = word_counts
@@ -246,7 +248,7 @@ class TensorProvider:
         if char_embedding:
             d += self.char_embedding_size
 
-    def load_data_tensors(self, data_keys_or_idx, bow_vocabulary=None,
+    def load_data_tensors(self, data_keys_or_idx,
                           word_embedding=True, pos_tags=True, char_embedding=True, bow=True,
                           labels=True):
         data_tensors = dict()
@@ -273,7 +275,7 @@ class TensorProvider:
 
         # BoW representations
         if bow:
-            data_tensors["bow"] = self._get_bow_tensors(tokens=tokens, bow_vocabulary=bow_vocabulary)
+            data_tensors["bow"] = self._get_bow_tensors(tokens=tokens)
 
         # Data labels
         if labels:

@@ -66,18 +66,13 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
                                                                                   len(train_idx),
                                                                                   len(test_idx)))
 
-        # Make BoW-vocabulary
+        # Make and set BoW-vocabulary
         bow_vocabulary = tensor_provider.extract_programs_vocabulary(train_idx)
+        tensor_provider.set_bow_vocabulary(bow_vocabulary)
 
         # TODO: These should be moved into the models training-facilities, enabling mini-batches
-        # Get data-tensors
-        training_data = tensor_provider.load_data_tensors(train_idx,
-                                                          bow_vocabulary=bow_vocabulary,
-                                                          word_embedding=False,
-                                                          char_embedding=False,
-                                                          pos_tags=False)
+        # Get data-tensors of test-data (for evaluation)
         test_data = tensor_provider.load_data_tensors(test_idx,
-                                                      bow_vocabulary=bow_vocabulary,
                                                       word_embedding=False,
                                                       char_embedding=False,
                                                       pos_tags=False)
@@ -94,7 +89,10 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
             model = model_class()  # type: DetektorModel
 
             # Fit model
-            model.fit(training_data, tf_sess, indentation=4)
+            model.fit(tensor_provider=tensor_provider,
+                      train_idx=train_idx,
+                      sess=tf_sess,
+                      indentation=4)
 
             # Predict on test-data for performance
             y_pred = np.squeeze(model.predict(test_data, tf_sess))

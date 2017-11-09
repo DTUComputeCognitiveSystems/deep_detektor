@@ -1,4 +1,5 @@
-import abc
+from util.tensor_provider import TensorProvider
+import tensorflow as tf
 
 
 class DetektorModel:
@@ -6,7 +7,14 @@ class DetektorModel:
     def name(cls):
         raise NotImplementedError
 
-    def fit(self, data, sess, indentation=0, is_batch=False):
+    def fit(self, tensor_provider, train_idx, sess, indentation=0):
+        """
+        :param TensorProvider tensor_provider:
+        :param list train_idx:
+        :param tf.Session sess:
+        :param int indentation:
+        :return:
+        """
         raise NotImplementedError
 
     def predict(self, data, sess):
