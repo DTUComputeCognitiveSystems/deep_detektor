@@ -12,7 +12,7 @@ class LogisticRegression(DetektorModel):
         self.training_epochs = training_epochs
         self.verbose = verbose
 
-    def fit(self, data, sess, **kwargs):
+    def fit(self, data, sess, indentation=0, **kwargs):
         num_features = data['bow'].shape[1]
 
         # TODO: Model definition and fields should be created in initializer (Python standard)
@@ -39,8 +39,6 @@ class LogisticRegression(DetektorModel):
         # Initialize the variables (i.e. assign their default value)
         self.initializer = tf.global_variables_initializer()
 
-        # TODO: Training epochs should be moved outside of model to the training facilities (ex. loo_cv)
-
         # # Start training
         # Run the initializer
         sess.run(self.initializer)
@@ -59,7 +57,7 @@ class LogisticRegression(DetektorModel):
             if (epoch + 1) % display_step == 0 and self.verbose:
                 print("Epoch:", '%04d' % (epoch + 1), "cost=", "{:.9f}".format(c))
 
-        print("Optimization Finished!")
+        print(indentation*" " + "Optimization Finished!")
 
     def predict(self, data, sess):
         x = data['bow']
@@ -83,7 +81,7 @@ class MLP(DetektorModel):
         self.verbose = verbose
         self.class_weights = np.array(class_weights)
 
-    def fit(self, data, sess, **kwargs):
+    def fit(self, data, sess, indentation=0, **kwargs):
         # yy = np.array(data['labels']).astype(float)
 
         num_features = data['bow'].shape[1]
@@ -114,8 +112,6 @@ class MLP(DetektorModel):
         # Display options
         display_step = 1
 
-        # TODO: Training epochs should be moved outside of model to the training facilities (ex. loo_cv)
-
         # Initialize the variables (i.e. assign their default value)
         self.initializer = tf.global_variables_initializer()
 
@@ -135,9 +131,9 @@ class MLP(DetektorModel):
                                                                     self.y: y})
             # Display logs per epoch step
             if (epoch + 1) % display_step == 0 and self.verbose:
-                print("Epoch:", '%04d' % (epoch + 1), "cost=", "{:.9f}".format(c))
+                print(indentation*" " + "\tEpoch:", '%04d' % (epoch + 1), "cost=", "{:.9f}".format(c))
 
-        print("Optimization Finished!")
+        print(indentation*" " + "Optimization Finished!")
 
     def predict(self, data, sess):
         # yy = np.array(data['labels']).astype(float)
