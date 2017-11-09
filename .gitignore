@@ -6,3 +6,5 @@
 .ropeproject*
 
 /notebooks/.ipynb_checkpoints/*
+**/__pycache__/**
+/models/speller/__pycache__/recurrent_speller.cpython-36.pyc

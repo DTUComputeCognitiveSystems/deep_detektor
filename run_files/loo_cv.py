@@ -3,6 +3,7 @@ import tensorflow as tf
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import LeaveOneOut
 
+from models.baselines import MyMLP, MyLogisticRegression
 from util.tensor_provider import TensorProvider
 
 
@@ -31,43 +32,60 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None):
     classification_results = np.full((n_programs, len(model_list), len(eval_functions)), np.nan)
 
     # Loop over programs
-    p = 0
     loo = LeaveOneOut()
-    for train, test in loo.split(unique_programs):
+    for program_nr, (train, test) in enumerate(loo.split(unique_programs)):
         # Get split indices
-        train_idx = program_ids != unique_programs[test]
-        test_idx = program_ids == unique_programs[test]
+        train_idx = np.where(program_ids != unique_programs[test])[0]
+        test_idx = np.where(program_ids == unique_programs[test])[0]
 
-        print('Welcome to program %i' % (p + 1))
-        print('Number of training examples %i' % (np.sum(train_idx)))
-        print('Number of test examples %i' % (np.sum(test_idx)))
+        print('\tProgram {}, using {} training samples and {} test samples.'.format(program_nr + 1,
+                                                                                    len(train_idx),
+                                                                                    len(test_idx)))
 
-        #
-        training_data = tensor_provider.load_data_tensors(train_idx)
-        test_data = tensor_provider.load_data_tensors(test_idx)
-        m = 0
-        for model in model_list:
-            # TODO: Yes we have problems with TF-sessions.
-            # TODO:   The speller in tensor_provider uses a sessions that should not be reset.
-            # Initalizize TF.seesion... and clear previous?
-            tfsess = tf.Session()
-            model.fit(training_data, tfsess)
-            y_pred = model.predict(test_data, tfsess)
+        # Make BoW-vocabulary
+        bow_vocabulary = tensor_provider.extract_programs_vocabulary(train_idx)
+
+        # TODO: Currently only BoW is returned, as the remaining are not needed in model
+        # Get data-tensors
+        training_data = tensor_provider.load_data_tensors(train_idx,
+                                                          bow_vocabulary=bow_vocabulary,
+                                                          word_embedding=False,
+                                                          char_embedding=False,
+                                                          pos_tags=False)
+        test_data = tensor_provider.load_data_tensors(test_idx,
+                                                      bow_vocabulary=bow_vocabulary,
+                                                      word_embedding=False,
+                                                      char_embedding=False,
+                                                      pos_tags=False)
+
+        # Go through models
+        for model_nr, model_class in enumerate(model_list):
+            # Initialize TF.session... and clear previous?
+            tf_sess = tf.Session()
+
+            # Initialize model
+            model = model_class()
+
+            # Fit model
+            model.fit(training_data, tf_sess)
+
+            # Predict on test-data for performance
+            y_pred = model.predict(test_data, tf_sess)
 
             # Evaluate with eval_functions
-            e = 0
-            for evalf in eval_functions:
-                classification_results[p, m, e] = evalf(test_data['labels'], y_pred)
-                e += 1
-
-            m += 1
+            for evaluation_nr, evalf in enumerate(eval_functions):
+                classification_results[program_nr, model_nr, evaluation_nr] = evalf(test_data['labels'], y_pred)
 
         print("Done with training and evaluation! ---")
-        p += 1
+
     return classification_results
 
 
 if __name__ == "__main__":
-    the_tensor_provider = TensorProvider(tf_graph=tf.Graph(), tf_session=tf.Session(), verbose=True)
+    the_tensor_provider = TensorProvider(verbose=True)
 
-    leave_one_program_out_cv(tensor_provider=the_tensor_provider, model_list=[])
+    results = leave_one_program_out_cv(tensor_provider=the_tensor_provider,
+                                       model_list=[MyLogisticRegression, MyMLP])
+
+    print("\nResults\n" + "-" * 75)
+    print(results)
