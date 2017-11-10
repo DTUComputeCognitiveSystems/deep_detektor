@@ -3,7 +3,6 @@ import tensorflow as tf
 from sklearn.model_selection import LeaveOneOut
 import xarray as xr
 
-from models.model_base import DetektorModel
 from models.baselines import MLP, LogisticRegression
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples
 from models.recurrent.basic_recurrent import BasicRecurrent
@@ -77,9 +76,6 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
         # Go through models
         for model_nr, model_class in enumerate(model_list):
             model_name = model_class.name()
-
-            # Initialize TF.session... and clear previous?
-            tf_sess = tf.Session()
 
             # Initialize model
             model = model_class(tensor_provider=tensor_provider)  # type: BasicRecurrent

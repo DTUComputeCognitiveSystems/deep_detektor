@@ -3,26 +3,35 @@ import tensorflow as tf
 import numpy as np
 
 from util.tensor_provider import TensorProvider
+from util.training_utilities import linear_geometric_curve
 
 
 class BasicRecurrent(DetektorModel):
-    def __init__(self, tensor_provider, units=None, epsilon=1e-10):
+    def __init__(self, tensor_provider, units=None,
+                 word_embedding=True, pos_tags=True, char_embedding=True):
         """
-        :param TensorProvider tensor_provider:
-        :param units:
-        :param verbose:
+
+        :param TensorProvider tensor_provider: Provides data for model.
+        :param list | tuple units: Number of units in [recurrent_layer, fully_connected_layer].
+        :param bool word_embedding: Use word-embeddings as inputs for network.
+        :param bool pos_tags: Use pos-tags as inputs for network.
+        :param bool char_embedding: Use character-embeddings as inputs for network.
         """
         super().__init__()
 
+        # Settings
+        self.use_char_embedding = char_embedding
+        self.use_pos_tags = pos_tags
+        self.use_word_embedding = word_embedding
+
         # Use model's graph
         with self._tf_graph.as_default():
-
             self.hidden_units = units if units is not None else [100, 50]
 
             # Get number of features
-            self.num_features = tensor_provider.input_dimensions(word_embedding=True,
-                                                                 pos_tags=True,
-                                                                 char_embedding=True)
+            self.num_features = tensor_provider.input_dimensions(word_embedding=self.use_word_embedding,
+                                                                 pos_tags=self.use_pos_tags,
+                                                                 char_embedding=self.use_char_embedding)
 
             # Model inputs
             self.inputs = tf.placeholder(tf.float32, shape=[None, None, self.num_features], name='input')
@@ -57,12 +66,12 @@ class BasicRecurrent(DetektorModel):
                 self._ffout_b = tf.Variable(tf.truncated_normal([1], stddev=1),
                                             name="ffout_b")
                 self._ffout_prod = tf.matmul(self.ff1_act, self._ffout_m)
-                self._ffout_a = self._ffout_prod + self._ffout_b
-                self.prediction = tf.squeeze(tf.nn.sigmoid(self._ffout_a, name="output"), axis=1)
+                self._ffout_a = tf.transpose(self._ffout_prod + self._ffout_b)
+                self.prediction = tf.nn.softmax(self._ffout_a, name="output")
 
             # Cost-function
             self.cost = tf.nn.softmax_cross_entropy_with_logits(labels=self.truth,
-                                                                logits=tf.transpose(self._ffout_a))
+                                                                logits=self._ffout_a)
 
             # Gradient Descent
             self.learning_rate = tf.placeholder(shape=(), dtype=tf.float32, name="learning_rate")
@@ -71,8 +80,8 @@ class BasicRecurrent(DetektorModel):
             # Run the initializer
             self._sess.run(tf.global_variables_initializer())
 
-    def fit(self, tensor_provider, train_idx, n_batches=10000, batch_size=40,
-            verbose=0, display_step=20, **kwargs):
+    def fit(self, tensor_provider, train_idx, n_batches=1000, batch_size=200,
+            verbose=0, display_step=10, **kwargs):
         """
         :param TensorProvider tensor_provider:
         :param list train_idx:
@@ -89,12 +98,19 @@ class BasicRecurrent(DetektorModel):
 
         # Get training data
         input_tensor = tensor_provider.load_concat_input_tensors(data_keys_or_idx=train_idx,
-                                                                 word_embedding=True,
-                                                                 char_embedding=True,
-                                                                 pos_tags=True)
+                                                                 word_embedding=self.use_word_embedding,
+                                                                 char_embedding=self.use_char_embedding,
+                                                                 pos_tags=self.use_pos_tags)
         output_truth = tensor_provider.load_labels(data_keys_or_idx=train_idx)
         input_lengths = tensor_provider.load_data_tensors(data_keys_or_idx=train_idx, word_counts=True)["word_counts"]
         train_idx = list(range(len(train_idx)))
+
+        # Make learning rates
+        learning_rates = linear_geometric_curve(n=2000,
+                                                starting_value=1e-7,
+                                                end_value=1e-18,
+                                                geometric_component=3. / 4,
+                                                geometric_end=5)
 
         # Run training batches
         for batch_nr in range(n_batches):
@@ -108,7 +124,7 @@ class BasicRecurrent(DetektorModel):
                 self.inputs: c_inputs,
                 self.input_lengths: c_input_lengths,
                 self.truth: c_truth,
-                self.learning_rate: 0.0
+                self.learning_rate: learning_rates[batch_nr]
             }
 
             # Fetching
@@ -119,7 +135,10 @@ class BasicRecurrent(DetektorModel):
 
             if verbose:
                 if (batch_nr + 1) % display_step == 0 and verbose:
-                    print(verbose * " " + "\tBatch {: 6d}. cost = {: 8.4f}".format(batch_nr + 1, c[0]))
+                    print(verbose * " ", end="")
+                    print("Batch {: 6d}. cost = {:6.2f}. learning_rate = {:.2e}".format(batch_nr + 1,
+                                                                                        c[0],
+                                                                                        learning_rates[batch_nr]))
 
     @classmethod
     def name(cls):
@@ -128,9 +147,9 @@ class BasicRecurrent(DetektorModel):
     def predict(self, tensor_provider, predict_idx, additional_fetch=None, binary=True):
         # Get data
         input_tensor = tensor_provider.load_concat_input_tensors(data_keys_or_idx=predict_idx,
-                                                                 word_embedding=True,
-                                                                 char_embedding=True,
-                                                                 pos_tags=True)
+                                                                 word_embedding=self.use_word_embedding,
+                                                                 char_embedding=self.use_char_embedding,
+                                                                 pos_tags=self.use_pos_tags)
         input_lengths = tensor_provider.load_data_tensors(data_keys_or_idx=predict_idx, word_counts=True)["word_counts"]
 
         # Feeds

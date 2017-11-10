@@ -33,7 +33,6 @@ class LogisticRegression(DetektorModel):
 
         # Use model's graph
         with self._tf_graph.as_default():
-
             # tf Graph Input
             self.x = tf.placeholder(tf.float32, [None, self.num_features])
             self.y = tf.placeholder(tf.float32, [None, ])  # binary classification
@@ -71,7 +70,7 @@ class LogisticRegression(DetektorModel):
         # Training cycle
         for epoch in range(self.training_epochs):
             _, c = self._sess.run([self.optimizer, self.cost], feed_dict={self.x: x,
-                                                                    self.y: y})
+                                                                          self.y: y})
             # Display logs per epoch step
             if verbose:
                 if (epoch + 1) % display_step == 0 and verbose:
