@@ -236,7 +236,9 @@ class TensorProvider:
     def _get_labels(self, data_keys):
         return np.array([self.labels[key] for key in data_keys])
 
-    def sequence_dimensions(self, word_embedding=True, pos_tags=True, char_embedding=True):
+    def input_dimensions(self, word_embedding=True, pos_tags=True, char_embedding=True, bow=False):
+        # Assert working with either global features or sequencial features
+        assert not any([bow]) or not any([word_embedding, pos_tags, char_embedding])
         d = 0
 
         if word_embedding:
@@ -247,6 +249,11 @@ class TensorProvider:
 
         if char_embedding:
             d += self.char_embedding_size
+
+        if bow:
+            d += len(self.bow_vocabulary)
+
+        return d
 
     def load_data_tensors(self, data_keys_or_idx,
                           word_embedding=True, pos_tags=True, char_embedding=True, bow=True,

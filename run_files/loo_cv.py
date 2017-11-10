@@ -20,6 +20,7 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
                              If None - run on all programs.
     :return:
     """
+    # TODO: Consider also looping over loss-functions: classic ones and weighed ones
     n_models = len(model_list)
 
     # Default evaluation score
@@ -49,8 +50,6 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
                                                       Model=[model_class.name() for model_class in model_list],
                                                       Evaluation=[val.name() for val in eval_functions]))
 
-    # TODO: Is this loop-ordering counter-intuitive? Would it be better to train and measure each model once at a time?
-
     # Loop over programs
     loo = LeaveOneOut()
     limit = len(unique_programs) if limit is None else limit
@@ -62,6 +61,7 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
         train_idx = np.where(program_ids != unique_programs[test])[0]
         test_idx = np.where(program_ids == unique_programs[test])[0]
 
+        # Report
         print("Program {}, using {} training samples and {} test samples.".format(program_nr + 1,
                                                                                   len(train_idx),
                                                                                   len(test_idx)))
@@ -70,7 +70,6 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
         bow_vocabulary = tensor_provider.extract_programs_vocabulary(train_idx)
         tensor_provider.set_bow_vocabulary(bow_vocabulary)
 
-        # TODO: These should be moved into the models training-facilities, enabling mini-batches
         # Get data-tensors of test-data (for evaluation)
         test_data = tensor_provider.load_data_tensors(test_idx,
                                                       word_embedding=False,
@@ -80,19 +79,18 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
         # Go through models
         for model_nr, model_class in enumerate(model_list):
             model_name = model_class.name()
-            print(" " * 2 + "Model: {}".format(model_name))
 
             # Initialize TF.session... and clear previous?
             tf_sess = tf.Session()
 
             # Initialize model
-            model = model_class()  # type: DetektorModel
+            model = model_class(tensor_provider=tensor_provider)  # type: DetektorModel
 
             # Fit model
             model.fit(tensor_provider=tensor_provider,
                       train_idx=train_idx,
                       sess=tf_sess,
-                      indentation=4)
+                      verbose=2)
 
             # Predict on test-data for performance
             y_pred = np.squeeze(model.predict(test_data, tf_sess))
@@ -109,22 +107,24 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
                 evaluation_results = evalf(y_true, y_pred)
                 classification_results[program_nr, model_nr, evaluation_nr] = evaluation_results
 
-        print(" " * 2 + "Done with program {}".format(program_nr + 1))
-
     if return_predictions:
         return classification_results, test_predictions
     return classification_results
 
 
 if __name__ == "__main__":
+    # Initialize tensor-provider (data-source)
     the_tensor_provider = TensorProvider(verbose=True)
 
+    # Run LOO-program
     results = leave_one_program_out_cv(tensor_provider=the_tensor_provider,
                                        model_list=[LogisticRegression, MLP],
                                        limit=None)  # type: xr.DataArray
 
+    # Get mean-results over programs
     mean_results = results.mean("Program")
     mean_results.name = "Mean Loo Results"
 
+    # Print mean results
     print("\nMean LOO Results\n" + "-" * 75)
     print(mean_results._to_dataset_split("Model").to_dataframe())
