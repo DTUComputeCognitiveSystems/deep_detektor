@@ -13,7 +13,7 @@ from project_paths import embeddings_file, pos_tags_file, speller_results_file, 
 
 
 class TensorProvider:
-    def __init__(self, verbose=False, end_of_word_char="$", fill=np.nan):
+    def __init__(self, verbose=False, end_of_word_char="$", fill=0):
         self.fill = fill
 
         # Make graph and session
@@ -236,9 +236,12 @@ class TensorProvider:
     def _get_labels(self, data_keys):
         return np.array([self.labels[key] for key in data_keys])
 
-    def input_dimensions(self, word_embedding=True, pos_tags=True, char_embedding=True, bow=False):
-        # Assert working with either global features or sequencial features
-        assert not any([bow]) or not any([word_embedding, pos_tags, char_embedding])
+    def input_dimensions(self, word_embedding=False, pos_tags=False, char_embedding=False, bow=False):
+        # Check consistency
+        sequential_data = any([word_embedding, pos_tags, char_embedding])
+        static_data = any([bow])
+        assert not (static_data and sequential_data), "Sequential data and static data can not be mixed (yet)"
+
         d = 0
 
         if word_embedding:
@@ -255,9 +258,48 @@ class TensorProvider:
 
         return d
 
-    def load_data_tensors(self, data_keys_or_idx,
-                          word_embedding=True, pos_tags=True, char_embedding=True, bow=True,
-                          labels=True):
+    def load_concat_input_tensors(self, data_keys_or_idx,
+                                  word_embedding=False, pos_tags=False, char_embedding=False, bow=False):
+        # Check consistency
+        sequential_data = any([word_embedding, pos_tags, char_embedding])
+        static_data = any([bow])
+        assert not (static_data and sequential_data), "Sequential data and static data can not be mixed (yet)"
+
+        data = self.load_data_tensors(data_keys_or_idx=data_keys_or_idx,
+                                      word_embedding=word_embedding,
+                                      pos_tags=pos_tags,
+                                      char_embedding=char_embedding,
+                                      bow=bow)
+
+        tensors = []
+
+        if word_embedding:
+            tensors.append(data["word_embedding"])
+
+        if pos_tags:
+            tensors.append(data["pos_tags"])
+
+        if char_embedding:
+            tensors.append(data["char_embedding"])
+
+        if bow:
+            tensors.append(data["bow"])
+
+        if sequential_data:
+            concatenated = np.concatenate(tensors, axis=2)
+        else:
+            concatenated = np.concatenate(tensors, axis=1)
+
+        return concatenated
+
+    def load_labels(self, data_keys_or_idx):
+        data = self.load_data_tensors(data_keys_or_idx=data_keys_or_idx,
+                                      labels=True)
+        return data["labels"]
+
+    def load_data_tensors(self, data_keys_or_idx, word_counts=False, char_counts=False,
+                          word_embedding=False, pos_tags=False, char_embedding=False, bow=False,
+                          labels=False):
         data_tensors = dict()
 
         data_keys = self._convert_to_keys(data_keys_or_idx)
@@ -266,7 +308,7 @@ class TensorProvider:
         tokens = [self.tokens[val] for val in data_keys]
 
         # Determine number of words in each sample
-        n_words = max([len(val) for val in tokens])
+        n_words = max([len(text) for text in tokens])
 
         # Word embeddings
         if word_embedding:
@@ -288,10 +330,26 @@ class TensorProvider:
         if labels:
             data_tensors["labels"] = self._get_labels(data_keys=data_keys)
 
+        # Word counts
+        if word_counts:
+            data_tensors["word_counts"] = np.array([len(text) for text in tokens])
+
+        # Character counts
+        if char_counts:
+            data_tensors["char_counts"] = np.array([sum([len(word) for word in text])
+                                                    for text in tokens])
+
         return data_tensors
 
 
 if __name__ == "__main__":
     tensor_provider = TensorProvider(verbose=True)
     print("\nTesting tensor provider.")
-    test = tensor_provider.load_data_tensors([0, 3, 4, 6])
+    test = tensor_provider.load_data_tensors([0, 3, 4, 6],
+                                             word_counts=True,
+                                             char_counts=True,
+                                             word_embedding=True,
+                                             pos_tags=True,
+                                             char_embedding=True,
+                                             bow=True,
+                                             labels=True)

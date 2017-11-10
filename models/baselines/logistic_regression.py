@@ -18,11 +18,10 @@ class LogisticRegression(DetektorModel):
         :param int training_epochs:
         :param bool verbose:
         """
+        super().__init__()
+
         # Get number of features
-        self.num_features = tensor_provider.input_dimensions(word_embedding=False,
-                                                             pos_tags=False,
-                                                             char_embedding=False,
-                                                             bow=True)
+        self.num_features = tensor_provider.input_dimensions(bow=True)
 
         # Settings
         self.learning_rate = learning_rate
@@ -32,39 +31,36 @@ class LogisticRegression(DetektorModel):
         ####
         # Build model
 
-        # tf Graph Input
-        self.x = tf.placeholder(tf.float32, [None, self.num_features])
-        self.y = tf.placeholder(tf.float32, [None, ])  # binary classification
+        # Use model's graph
+        with self._tf_graph.as_default():
 
-        # Set model weights
-        self.W = tf.Variable(tf.zeros([self.num_features, 1]))
-        self.b = tf.Variable(tf.zeros([1]))
+            # tf Graph Input
+            self.x = tf.placeholder(tf.float32, [None, self.num_features])
+            self.y = tf.placeholder(tf.float32, [None, ])  # binary classification
 
-        # Construct model
-        self.pred = tf.nn.sigmoid(tf.matmul(self.x, self.W) + self.b)  # sigmoid
+            # Set model weights
+            self.W = tf.Variable(tf.zeros([self.num_features, 1]))
+            self.b = tf.Variable(tf.zeros([1]))
 
-        # Minimize error using cross entropy
-        self.cost = tf.reduce_mean(-self.y * tf.log(self.pred) - (1 - self.y) * tf.log(1 - self.pred))
+            # Construct model
+            self.pred = tf.nn.sigmoid(tf.matmul(self.x, self.W) + self.b)  # sigmoid
 
-        # Gradient Descent
-        self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.cost)
+            # Minimize error using cross entropy
+            self.cost = tf.reduce_mean(-self.y * tf.log(self.pred) - (1 - self.y) * tf.log(1 - self.pred))
 
-        # Initialize the variables (i.e. assign their default value)
-        self.initializer = tf.global_variables_initializer()
+            # Gradient Descent
+            self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.cost)
 
-    def fit(self, tensor_provider, train_idx, sess, verbose=0, display_step=1, **kwargs):
+            # Run the initializer
+            self._sess.run(tf.global_variables_initializer())
+
+    def fit(self, tensor_provider, train_idx, verbose=0, display_step=1, **kwargs):
         if verbose:
             print(verbose * " " + "Fitting {}".format(self.name()))
             verbose += 2
 
         # Get training data
-        data = tensor_provider.load_data_tensors(train_idx,
-                                                 word_embedding=False,
-                                                 char_embedding=False,
-                                                 pos_tags=False)
-
-        # Run the initializer
-        sess.run(self.initializer)
+        data = tensor_provider.load_data_tensors(train_idx, bow=True, labels=True)
 
         # Fetch data
         x = data['bow']
@@ -74,19 +70,34 @@ class LogisticRegression(DetektorModel):
 
         # Training cycle
         for epoch in range(self.training_epochs):
-            _, c = sess.run([self.optimizer, self.cost], feed_dict={self.x: x,
+            _, c = self._sess.run([self.optimizer, self.cost], feed_dict={self.x: x,
                                                                     self.y: y})
             # Display logs per epoch step
             if verbose:
-                if (epoch + 1) % display_step == 0 and self.verbose:
-                    print("Epoch:", '%04d' % (epoch + 1), "cost=", "{:.9f}".format(c))
+                if (epoch + 1) % display_step == 0 and verbose:
+                    print(verbose * " " + "Epoch:", '%04d' % (epoch + 1), "cost=", "{:.9f}".format(c))
 
         if verbose:
             print(verbose * " " + "Optimization Finished!")
 
-    def predict(self, data, sess):
-        x = data['bow']
-        if not isinstance(x, np.ndarray):
-            x = x.todense()
-        ll = sess.run(self.pred, feed_dict={self.x: x})
-        return ll > 0.5
+    def predict(self, tensor_provider, predict_idx, additional_fetch=None, binary=True):
+        # Get data
+        input_tensor = tensor_provider.load_concat_input_tensors(data_keys_or_idx=predict_idx,
+                                                                 bow=True)
+
+        # Feeds
+        feed_dict = {
+            self.x: input_tensor,
+        }
+
+        # Do prediction
+        if additional_fetch is None:
+            predictions = self._sess.run(self.pred, feed_dict=feed_dict)
+        else:
+            predictions = self._sess.run(self.pred + additional_fetch, feed_dict=feed_dict)
+
+        # Optional binary conversion
+        if binary:
+            predictions = predictions > 0.5
+
+        return predictions

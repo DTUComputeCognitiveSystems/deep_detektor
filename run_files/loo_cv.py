@@ -6,6 +6,7 @@ import xarray as xr
 from models.model_base import DetektorModel
 from models.baselines import MLP, LogisticRegression
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples
+from models.recurrent.basic_recurrent import BasicRecurrent
 from util.tensor_provider import TensorProvider
 
 
@@ -70,11 +71,8 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
         bow_vocabulary = tensor_provider.extract_programs_vocabulary(train_idx)
         tensor_provider.set_bow_vocabulary(bow_vocabulary)
 
-        # Get data-tensors of test-data (for evaluation)
-        test_data = tensor_provider.load_data_tensors(test_idx,
-                                                      word_embedding=False,
-                                                      char_embedding=False,
-                                                      pos_tags=False)
+        # Get truth of test-set
+        y_true = tensor_provider.load_labels(data_keys_or_idx=test_idx)
 
         # Go through models
         for model_nr, model_class in enumerate(model_list):
@@ -84,17 +82,17 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
             tf_sess = tf.Session()
 
             # Initialize model
-            model = model_class(tensor_provider=tensor_provider)  # type: DetektorModel
+            model = model_class(tensor_provider=tensor_provider)  # type: BasicRecurrent
 
             # Fit model
             model.fit(tensor_provider=tensor_provider,
                       train_idx=train_idx,
-                      sess=tf_sess,
                       verbose=2)
 
             # Predict on test-data for performance
-            y_pred = np.squeeze(model.predict(test_data, tf_sess))
-            y_true = test_data['labels']
+            y_pred = model.predict(tensor_provider=tensor_provider,
+                                   predict_idx=test_idx)
+            y_pred = np.squeeze(y_pred)
 
             # Store predictions
             if return_predictions:
@@ -103,7 +101,7 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
             # Evaluate with eval_functions
             for evaluation_nr, evalf in enumerate(eval_functions):
                 assert y_pred.shape == y_true.shape, "y_pred ({}) and y_true ({}) " \
-                                                     "does not have same shape".format(y_pred.shape, y_true.shape)
+                                                     "do not have same shape".format(y_pred.shape, y_true.shape)
                 evaluation_results = evalf(y_true, y_pred)
                 classification_results[program_nr, model_nr, evaluation_nr] = evaluation_results
 
@@ -119,7 +117,7 @@ if __name__ == "__main__":
     # Run LOO-program
     results = leave_one_program_out_cv(tensor_provider=the_tensor_provider,
                                        model_list=[LogisticRegression, MLP],
-                                       limit=None)  # type: xr.DataArray
+                                       limit=1)  # type: xr.DataArray
 
     # Get mean-results over programs
     mean_results = results.mean("Program")
