@@ -1,4 +1,55 @@
 from abc import ABC, abstractmethod
+import logging
+from pathlib import Path
+
+class opts:
+
+    def __init__(self, inputPath='', outputPath=''):
+        self.inputPath=Path(inputPath)
+        self.outputPath=Path(outputPath)
+
+class BaseDataClass(ABC):
+
+    def __init__(self, data=None,opts=[]):
+        self.logger=logging.Logger(self.name)
+        ch = logging.StreamHandler()
+        self.logger.addHandler(ch)
+        self.logLevel = logging.INFO
+
+        self.data=data
+        self.opts=opts
+
+    @abstractmethod
+    def save(self):
+        return NotImplemented
+
+    @abstractmethod
+    def load(self):
+        return NotImplemented
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    @abstractmethod
+    def data(self, data):
+        return NotImplemented
+
+    @property
+    @abstractmethod
+    def name(self):
+        return NotImplemented
+
+    @property
+    def logLevel(self):
+        return self._logLevel
+
+    @logLevel.setter
+    def logLevel(self, logLevel):
+        self._logLevel=logLevel
+        self.logger.handlers[0].setLevel(logLevel)
+
 
 # ==============================================================================
 # Abstract Composition Class
@@ -17,9 +68,24 @@ class BaseDataTransformer(ABC):
         self.inputFormat=inputFormat
         self.outputFormat=outputFormat
 
+        self.logger=logging.Logger('dataTransformer')
+        ch = logging.StreamHandler()
+        self.logger.addHandler(ch)
+        self.logLevel = logging.WARNING
+
+    def transform(self, dataInput):
+        dataOutput = self._transform(dataInput)
+        dataOutput.opts=dataInput.opts
+        return dataOutput
+
     @abstractmethod
-    def transform(self, data):
+    def _transform(self, data):
         pass
+
+#    @property
+#    @abstractmethod
+#    def name(self):
+#        return NotImplemented
 
     @property
     def inputFormat(self):
@@ -36,6 +102,15 @@ class BaseDataTransformer(ABC):
     @outputFormat.setter
     def outputFormat(self, outputFormat):
         self._outputFormat = outputFormat
+
+    @property
+    def logLevel(self):
+        return self._logLevel
+
+    @logLevel.setter
+    def logLevel(self, logLevel):
+        self._logLevel=logLevel
+        self.logger.handlers[0].setLevel(logLevel)
 
     def listChildren(self):
         pass
@@ -66,7 +141,7 @@ class BasePipeline(BaseDataTransformer):
         for dataTransformer in dataTransformers:
             self.addChild(dataTransformer)
 
-    def transform(self,data):
+    def _transform(self,data):
         for dataTransformer in self.dataTransformers:
             data = dataTransformer.transform(data)
         return data
@@ -87,11 +162,40 @@ class BasePipeline(BaseDataTransformer):
                 dataTransformer.parent = self
                 self.dataTransformers.append(dataTransformer)
                 self.outputFormat = dataTransformer.outputFormat
+
+
         return self
 
     def listChildren(self):
         for dataTransformer in self.dataTransformers:
             print(dataTransformer)
+
+    @property
+    def logLevel(self):
+        return self._logLevel
+
+    @logLevel.setter
+    def logLevel(self, logLevel):
+        for dataTransformer in self.dataTransformers:
+            dataTransformer.logLevel=logLevel
+
+
+class BaseAggregator(BaseDataTransformer):
+
+    def __init__(dataTransformers):
+        self.dataTransformers = dataTransformers
+
+    def _transform(self,data):
+        for i, dataObject in enumerate(data):
+            for dataTransformer in self.dataTransformers:
+                if dataTransformer.startswith(dataObject.Name):
+                    dataObject=dataTransformer.transform(dataObject)
+            data[i]=dataObject
+        return data
+
+    @property
+    def name(self):
+        return "DataAggregator"
 
 class BasePredictiveModel(BaseDataTransformer):
     """
@@ -105,6 +209,6 @@ class BasePredictiveModel(BaseDataTransformer):
         self.model = model
         super().__init__('X','yPredictions')
 
-    def transform(self,data):
+    def _transform(self,data):
         data = self.model.predict(data)
         return data
