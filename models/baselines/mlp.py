@@ -86,7 +86,7 @@ class MLP(DetektorModel):
         if verbose:
             print(verbose * " " + "Optimization Finished!")
 
-    def predict(self, tensor_provider, predict_idx, additional_fetch=None, binary=True):
+    def predict(self, tensor_provider, predict_idx, additional_fetch=None):
         # Get data
         input_tensor = tensor_provider.load_concat_input_tensors(data_keys_or_idx=predict_idx,
                                                                  bow=True)
@@ -102,8 +102,7 @@ class MLP(DetektorModel):
         else:
             predictions = self._sess.run(self.pred + additional_fetch, feed_dict=feed_dict)
 
-        # Optional binary conversion
-        if binary:
-            predictions = predictions > 0.5
+        # Binary conversion
+        binary_predictions = predictions > 0.5
 
-        return predictions
+        return predictions, binary_predictions

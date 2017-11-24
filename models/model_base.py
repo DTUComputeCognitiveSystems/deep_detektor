@@ -24,5 +24,5 @@ class DetektorModel:
         """
         raise NotImplementedError
 
-    def predict(self, tensor_provider, predict_idx, additional_fetch=None, binary=True):
+    def predict(self, tensor_provider, predict_idx, additional_fetch=None):
         raise NotImplementedError
