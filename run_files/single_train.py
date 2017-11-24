@@ -1,8 +1,12 @@
+from pathlib import Path
+
 import numpy as np
 import xarray as xr
 
+import project_paths
 from models.baselines import LogisticRegression, MLP
-from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples
+from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
+    AreaUnderROC
 from models.recurrent.basic_recurrent import BasicRecurrent
 from util.tensor_provider import TensorProvider
 
@@ -20,7 +24,7 @@ def single_training(tensor_provider, model_class, n_test_programs=1, eval_functi
     # Default evaluation score
     if eval_functions is None:
         eval_functions = [Accuracy(), F1(), TruePositives(), TrueNegatives(), FalsePositives(), FalseNegatives(),
-                          Samples()]
+                          Samples(), AreaUnderROC()]
     n_evaluations = len(eval_functions)
 
     # Elements keys
@@ -50,8 +54,8 @@ def single_training(tensor_provider, model_class, n_test_programs=1, eval_functi
 
     # Report
     print("Test programs {}, using {} training samples and {} test samples.".format(test_programs + 1,
-                                                                               len(train_idx),
-                                                                               len(test_idx)))
+                                                                                    len(train_idx),
+                                                                                    len(test_idx)))
 
     # Make and set BoW-vocabulary
     bow_vocabulary = tensor_provider.extract_programs_vocabulary(train_idx)
@@ -66,12 +70,14 @@ def single_training(tensor_provider, model_class, n_test_programs=1, eval_functi
     # Fit model
     model.fit(tensor_provider=tensor_provider,
               train_idx=train_idx,
-              verbose=2)
+              verbose=2,
+              plot_path=Path(project_paths.results, "training_curve"))
 
     # Predict on test-data for performance
-    y_pred = model.predict(tensor_provider=tensor_provider,
-                           predict_idx=test_idx)
+    y_pred, y_pred_binary = model.predict(tensor_provider=tensor_provider,
+                                          predict_idx=test_idx)
     y_pred = np.squeeze(y_pred)
+    y_pred_binary = np.squeeze(y_pred_binary)
 
     # Store predictions
     test_predictions = y_pred
@@ -80,8 +86,10 @@ def single_training(tensor_provider, model_class, n_test_programs=1, eval_functi
     for evaluation_nr, evalf in enumerate(eval_functions):
         assert y_pred.shape == y_true.shape, "y_pred ({}) and y_true ({}) " \
                                              "do not have same shape".format(y_pred.shape, y_true.shape)
-        evaluation_results = evalf(y_true, y_pred)
-        classification_results[0, evaluation_nr] = evaluation_results
+        evaluation_result = evalf(y_true=y_true,
+                                  y_pred=y_pred,
+                                  y_pred_binary=y_pred_binary)
+        classification_results[0, evaluation_nr] = evaluation_result
 
     if return_predictions:
         return classification_results, test_predictions

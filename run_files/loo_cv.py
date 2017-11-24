@@ -4,7 +4,8 @@ from sklearn.model_selection import LeaveOneOut
 import xarray as xr
 
 from models.baselines import MLP, LogisticRegression
-from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples
+from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
+    AreaUnderROC
 from models.recurrent.basic_recurrent import BasicRecurrent
 from util.tensor_provider import TensorProvider
 
@@ -26,7 +27,7 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
     # Default evaluation score
     if eval_functions is None:
         eval_functions = [Accuracy(), F1(), TruePositives(), TrueNegatives(), FalsePositives(), FalseNegatives(),
-                          Samples()]
+                          Samples(), AreaUnderROC()]
     n_evaluations = len(eval_functions)
 
     # Elements keys
@@ -86,9 +87,10 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
                       verbose=2)
 
             # Predict on test-data for performance
-            y_pred = model.predict(tensor_provider=tensor_provider,
-                                   predict_idx=test_idx)
+            y_pred, y_pred_binary = model.predict(tensor_provider=tensor_provider,
+                                                  predict_idx=test_idx)
             y_pred = np.squeeze(y_pred)
+            y_pred_binary = np.squeeze(y_pred_binary)
 
             # Store predictions
             if return_predictions:
@@ -98,8 +100,10 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
             for evaluation_nr, evalf in enumerate(eval_functions):
                 assert y_pred.shape == y_true.shape, "y_pred ({}) and y_true ({}) " \
                                                      "do not have same shape".format(y_pred.shape, y_true.shape)
-                evaluation_results = evalf(y_true, y_pred)
-                classification_results[program_nr, model_nr, evaluation_nr] = evaluation_results
+                evaluation_result = evalf(y_true=y_true,
+                                           y_pred=y_pred,
+                                           y_pred_binary=y_pred_binary)
+                classification_results[program_nr, model_nr, evaluation_nr] = evaluation_result
 
     if return_predictions:
         return classification_results, test_predictions

@@ -1,9 +1,11 @@
 from models.model_base import DetektorModel
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
 
 from util.tensor_provider import TensorProvider
-from util.training_utilities import linear_geometric_curve
+from util.learning_rate_utilities import linear_geometric_curve, primary_secondary_plot
+from util.utilities import save_fig
 
 
 class BasicRecurrent(DetektorModel):
@@ -81,7 +83,7 @@ class BasicRecurrent(DetektorModel):
             self._sess.run(tf.global_variables_initializer())
 
     def fit(self, tensor_provider, train_idx, n_batches=1000, batch_size=200,
-            verbose=0, display_step=10, **kwargs):
+            verbose=0, display_step=10, plot_path=None, **kwargs):
         """
         :param TensorProvider tensor_provider:
         :param list train_idx:
@@ -89,9 +91,18 @@ class BasicRecurrent(DetektorModel):
         :param int batch_size:
         :param int verbose:
         :param int display_step:
+        :param plot_path: Path to put performance plot (None for no plot).
         :param kwargs:
         :return:
         """
+        # Close all figures and make a new one
+        fig = None
+        if plot_path is not None:
+            plt.close("all")
+            plt.ioff()
+            print("Making figure")
+            fig = plt.figure(figsize=(16, 12))
+
         if verbose:
             print(verbose * " " + "Fitting {}".format(self.name()))
             verbose += 2
@@ -106,13 +117,15 @@ class BasicRecurrent(DetektorModel):
         train_idx = list(range(len(train_idx)))
 
         # Make learning rates
-        learning_rates = linear_geometric_curve(n=2000,
-                                                starting_value=1e-7,
-                                                end_value=1e-18,
-                                                geometric_component=3. / 4,
-                                                geometric_end=5)
+        learning_rates = linear_geometric_curve(n=n_batches,
+                                                starting_value=1e-12,
+                                                end_value=1e-22,
+                                                geometric_component=2. / 4,
+                                                geometric_end=1)
 
         # Run training batches
+        costs = []
+        batches = []
         for batch_nr in range(n_batches):
             c_indices = np.random.choice(train_idx, batch_size, replace=False)
             c_inputs = input_tensor[c_indices, :, :]
@@ -133,18 +146,45 @@ class BasicRecurrent(DetektorModel):
             # Run batch training
             _, c = self._sess.run(fetches=fetch, feed_dict=feed_dict)
 
+            # Note performance
+            costs.append(c[0])
+            batches.append(batch_nr + 1)
+
             if verbose:
+                # Plot error and learning rate
+                if plot_path is not None:
+                    fig.clear()
+                    primary_secondary_plot(
+                        primary_xs=batches,
+                        primary_values=costs,
+                        secondary_plots=[learning_rates],
+                        x_limit=n_batches,
+                        primary_label="Cost",
+                        secondary_label="Learning Rate",
+                        x_label="Batch",
+                        title="BasicRecurrent: Cost and learning rate"
+                    )
+                    save_fig(plot_path, only_pdf=True)
+
+                # Print validation
                 if (batch_nr + 1) % display_step == 0 and verbose:
                     print(verbose * " ", end="")
-                    print("Batch {: 6d}. cost = {:6.2f}. learning_rate = {:.2e}".format(batch_nr + 1,
-                                                                                        c[0],
-                                                                                        learning_rates[batch_nr]))
+                    print("Batch {: 8d} / {: 8d}. cost = {:10.2f}. learning_rate = {:.2e}"
+                          .format(batch_nr + 1,
+                                  n_batches,
+                                  c[0],
+                                  learning_rates[batch_nr]))
+
+        # Done
+        if plot_path is not None:
+            plt.close("all")
+            plt.ion()
 
     @classmethod
     def name(cls):
         return "BasicRecurrent"
 
-    def predict(self, tensor_provider, predict_idx, additional_fetch=None, binary=True):
+    def predict(self, tensor_provider, predict_idx, additional_fetch=None):
         # Get data
         input_tensor = tensor_provider.load_concat_input_tensors(data_keys_or_idx=predict_idx,
                                                                  word_embedding=self.use_word_embedding,
@@ -164,8 +204,7 @@ class BasicRecurrent(DetektorModel):
         else:
             predictions = self._sess.run([self.prediction] + additional_fetch, feed_dict=feed_dict)
 
-        # Optional binary conversion
-        if binary:
-            predictions = predictions > 0.5
+        # Binary conversion
+        binary_predictions = predictions > 0.5
 
-        return predictions
+        return predictions, binary_predictions
