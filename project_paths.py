@@ -21,3 +21,6 @@ speller_results_file = Path(speller_dir, "results.json")
 speller_char_vocab_file = Path(speller_dir, "char_embedding.json")
 speller_translator_file = Path(speller_dir, "string_translator.json")
 speller_encoder_checkpoint_file = Path(speller_dir, "checkpoint", "speller_encode.ckpt")
+
+# Directory for outputs (evaluations, statistics etc.)
+results = Path(data_dir, "results")
