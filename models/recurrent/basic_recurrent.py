@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from models.model_base import DetektorModel
 import tensorflow as tf
 import numpy as np
@@ -83,7 +85,7 @@ class BasicRecurrent(DetektorModel):
             self._sess.run(tf.global_variables_initializer())
 
     def fit(self, tensor_provider, train_idx, n_batches=1000, batch_size=200,
-            verbose=0, display_step=10, plot_path=None, **kwargs):
+            verbose=0, display_step=10, results_path=None, **kwargs):
         """
         :param TensorProvider tensor_provider:
         :param list train_idx:
@@ -91,17 +93,17 @@ class BasicRecurrent(DetektorModel):
         :param int batch_size:
         :param int verbose:
         :param int display_step:
-        :param plot_path: Path to put performance plot (None for no plot).
+        :param results_path: Path to put performance plot (None for no plot).
         :param kwargs:
         :return:
         """
         # Close all figures and make a new one
         fig = None
-        if plot_path is not None:
+        if results_path is not None:
             plt.close("all")
             plt.ioff()
             print("Making figure")
-            fig = plt.figure(figsize=(16, 12))
+            fig = plt.figure(figsize=(14, 11))
 
         if verbose:
             print(verbose * " " + "Fitting {}".format(self.name()))
@@ -120,8 +122,8 @@ class BasicRecurrent(DetektorModel):
         learning_rates = linear_geometric_curve(n=n_batches,
                                                 starting_value=1e-12,
                                                 end_value=1e-22,
-                                                geometric_component=2. / 4,
-                                                geometric_end=1)
+                                                geometric_component=3. / 4,
+                                                geometric_end=2)
 
         # Run training batches
         costs = []
@@ -152,7 +154,7 @@ class BasicRecurrent(DetektorModel):
 
             if verbose:
                 # Plot error and learning rate
-                if plot_path is not None:
+                if results_path is not None:
                     fig.clear()
                     primary_secondary_plot(
                         primary_xs=batches,
@@ -164,7 +166,7 @@ class BasicRecurrent(DetektorModel):
                         x_label="Batch",
                         title="BasicRecurrent: Cost and learning rate"
                     )
-                    save_fig(plot_path, only_pdf=True)
+                    save_fig(Path(results_path, "training_curve"), only_pdf=True)
 
                 # Print validation
                 if (batch_nr + 1) % display_step == 0 and verbose:
@@ -176,7 +178,7 @@ class BasicRecurrent(DetektorModel):
                                   learning_rates[batch_nr]))
 
         # Done
-        if plot_path is not None:
+        if results_path is not None:
             plt.close("all")
             plt.ion()
 

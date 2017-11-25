@@ -1,20 +1,31 @@
-import random
-
+import matplotlib.pyplot as plt
 from evaluations import Evaluation, DataPositives, DataNegatives
 
 
 class AreaUnderROC(Evaluation):
     def __call__(self, y_true, y_pred, y_pred_binary=None):
         # Get ROC
-        positive_rate, negative_rate = make_roc(y_true, y_pred, y_pred_binary)
+        tp_rate, fp_rate = make_roc(y_true, y_pred, y_pred_binary)
 
         # Compute area
-        area = sum(positive_rate) / len(positive_rate)
+        area = sum(tp_rate) / len(tp_rate)
 
         return area
 
     def name(self):
         return "AreaUnderROC"
+
+
+class ROC(Evaluation):
+    @property
+    def is_single_value(self):
+        return False
+
+    def __call__(self, y_true, y_pred, y_pred_binary=None):
+        return make_roc(y_true, y_pred, y_pred_binary)
+
+    def name(self):
+        return "ROC"
 
 
 def make_roc(y_true, y_pred, y_pred_binary):
@@ -34,17 +45,32 @@ def make_roc(y_true, y_pred, y_pred_binary):
     # Compute TP-rate and FP-rate
     positives_delta = 1 / n_positives
     negatives_delta = 1 / n_negatives
+    tp_rate = [0]
     fp_rate = [0]
-    fn_rate = [0]
     for _, new_positive in evaluations:
 
         if new_positive:
-            fp_rate[-1] += positives_delta
+            tp_rate[-1] += positives_delta
         else:
-            fn_rate.append(fn_rate[-1] + negatives_delta)
-            fp_rate.append(fp_rate[-1])
+            fp_rate.append(fp_rate[-1] + negatives_delta)
+            tp_rate.append(tp_rate[-1])
 
-    return fp_rate, fn_rate
+    return tp_rate, fp_rate
+
+
+def plot_roc(tp_rate, fp_rate, title=""):
+    plt.plot([0, 1], [0, 1], color="gray", linestyle="--")
+    plt.plot(fp_rate, tp_rate)
+    plt.xlabel("False Negative Rate")
+    plt.ylabel("False Positive Rate")
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    plt.title(title)
+    plt.text(x=0.99,
+             y=0.01,
+             s="Area under ROC: {:.2f}".format(sum(tp_rate) / len(tp_rate)),
+             ha="right",
+             va="bottom")
 
 
 if __name__ == "__main__":

@@ -1,16 +1,22 @@
-import numpy as np
-import tensorflow as tf
-from sklearn.model_selection import LeaveOneOut
-import xarray as xr
+from pathlib import Path
 
-from models.baselines import MLP, LogisticRegression
+import matplotlib.pyplot as plt
+import numpy as np
+import xarray as xr
+from sklearn.model_selection import LeaveOneOut
+
+import project_paths
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
     AreaUnderROC
+from evaluations.area_roc import plot_roc, ROC
+from models.baselines import MLP, LogisticRegression
 from models.recurrent.basic_recurrent import BasicRecurrent
 from util.tensor_provider import TensorProvider
+from util.utilities import ensure_folder, save_fig
 
 
-def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, limit=None, return_predictions=False):
+def leave_one_program_out_cv(tensor_provider, model_list, path,
+                             eval_functions=None, limit=None, return_predictions=False):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param list[ClassVar] model_list: List of model-classes for testing.
@@ -19,16 +25,18 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
                                     Can be used to determine whether errors are the same across models.
     :param int | None limit: Only perform analysis on some programs (for testing)
                              If None - run on all programs.
+    :param Path path: Path for storing results
     :return:
     """
+    ensure_folder(path)
+
     # TODO: Consider also looping over loss-functions: classic ones and weighed ones
     n_models = len(model_list)
 
     # Default evaluation score
     if eval_functions is None:
         eval_functions = [Accuracy(), F1(), TruePositives(), TrueNegatives(), FalsePositives(), FalseNegatives(),
-                          Samples(), AreaUnderROC()]
-    n_evaluations = len(eval_functions)
+                          Samples(), AreaUnderROC(), ROC()]
 
     # Elements keys
     keys = tensor_provider.keys
@@ -43,13 +51,15 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
     test_predictions = dict()
 
     # Initialize array for holding results
-    classification_results = np.full((n_programs, n_models, n_evaluations), np.nan)
+    special_results = dict()
+    evaluation_names = [val.name() for val in eval_functions if val.is_single_value]
+    classification_results = np.full((n_programs, n_models, len(evaluation_names)), np.nan)
     classification_results = xr.DataArray(classification_results,
                                           name="Loo Results",
                                           dims=["Program", "Model", "Evaluation"],
                                           coords=dict(Program=program_names,
                                                       Model=[model_class.name() for model_class in model_list],
-                                                      Evaluation=[val.name() for val in eval_functions]))
+                                                      Evaluation=evaluation_names))
 
     # Loop over programs
     loo = LeaveOneOut()
@@ -97,32 +107,64 @@ def leave_one_program_out_cv(tensor_provider, model_list, eval_functions=None, l
                 test_predictions.setdefault(model_name, dict())[program_name] = y_pred
 
             # Evaluate with eval_functions
-            for evaluation_nr, evalf in enumerate(eval_functions):
+            evaluation_nr = 0
+            for evalf in eval_functions:
                 assert y_pred.shape == y_true.shape, "y_pred ({}) and y_true ({}) " \
                                                      "do not have same shape".format(y_pred.shape, y_true.shape)
-                evaluation_result = evalf(y_true=y_true,
-                                           y_pred=y_pred,
-                                           y_pred_binary=y_pred_binary)
-                classification_results[program_nr, model_nr, evaluation_nr] = evaluation_result
+
+                if evalf.is_single_value:
+                    evaluation_result = evalf(y_true=y_true,
+                                              y_pred=y_pred,
+                                              y_pred_binary=y_pred_binary)
+                    classification_results[program_nr, model_nr, evaluation_nr] = evaluation_result
+                    evaluation_nr += 1
+                else:
+                    special_results[(model_class.name(), evalf.name(), program_nr)] = evalf(y_true=y_true,
+                                                                                            y_pred=y_pred,
+                                                                                            y_pred_binary=y_pred_binary)
+
+    # Plot ROC curves if wanted
+    for program_nr in range(len(unique_programs)):
+        for model_class in model_list:
+            key = (model_class.name(), "ROC", program_nr)
+            if key in special_results:
+                positive_rate, negative_rate = special_results[key]
+                file_name = "ROC_{}_program{:02d}".format(model_class.name(), program_nr)
+                plot_roc(tp_rate=positive_rate,
+                         fp_rate=negative_rate,
+                         title=file_name)
+                save_fig(Path(path, file_name))
+                plt.close()
 
     if return_predictions:
-        return classification_results, test_predictions
-    return classification_results
+        return classification_results, special_results, test_predictions
+    return classification_results, special_results
 
 
 if __name__ == "__main__":
     # Initialize tensor-provider (data-source)
     the_tensor_provider = TensorProvider(verbose=True)
 
+    # Choose number of programs to run though (None for all)
+    program_limit = 3
+
+    # Choose models
+    models = [LogisticRegression, MLP]
+
     # Run LOO-program
-    results = leave_one_program_out_cv(tensor_provider=the_tensor_provider,
-                                       model_list=[LogisticRegression, MLP],
-                                       limit=1)  # type: xr.DataArray
+    loo_path = Path(project_paths.results, "LOO_CV")
+    results, s_results = leave_one_program_out_cv(tensor_provider=the_tensor_provider,
+                                                  model_list=models,
+                                                  limit=program_limit,
+                                                  path=loo_path)  # type: xr.DataArray
 
     # Get mean-results over programs
     mean_results = results.mean("Program")
     mean_results.name = "Mean Loo Results"
+    mean_results = mean_results._to_dataset_split("Model").to_dataframe()
 
     # Print mean results
     print("\nMean LOO Results\n" + "-" * 75)
-    print(mean_results._to_dataset_split("Model").to_dataframe())
+    with Path(loo_path, "mean_results.txt").open("w") as file:
+        file.write(str(mean_results))
+    print(mean_results)

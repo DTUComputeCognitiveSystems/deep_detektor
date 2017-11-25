@@ -1,4 +1,8 @@
 class Evaluation:
+    @property
+    def is_single_value(self):
+        return True
+
     def name(self):
         raise NotImplementedError
 

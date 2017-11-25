@@ -84,9 +84,9 @@ def primary_secondary_plot(primary_xs, primary_values, secondary_plots, x_limit,
     # Secondary axis is given learning rate
     for nr, values in enumerate(secondary_plots):
         if len(values) == x_limit:
-            ax2.plot(x_values, values, color=secondary_colors[nr], alpha=1.0 / 3)
+            ax2.plot(x_values, values, color=secondary_colors[nr], alpha=1.0)
         else:
-            ax2.plot(primary_xs, values, color=secondary_colors[nr], alpha=1.0 / 3)
+            ax2.plot(primary_xs, values, color=secondary_colors[nr], alpha=1.0)
 
     # Set limit of axes
     ax2.set_xlim(0, x_limit)
