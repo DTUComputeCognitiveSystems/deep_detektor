@@ -9,7 +9,8 @@ class MLP(DetektorModel):
     def name(cls):
         return "MLP"
 
-    def __init__(self, tensor_provider, hidden_units=2, learning_rate=0.001, training_epochs=10, verbose=False,
+    def __init__(self, tensor_provider, hidden_units=2, learning_rate=0.001,
+                 training_epochs=20, verbose=False,
                  class_weights=np.array([1.0, 1.0])):
         """
         :param TensorProvider tensor_provider:

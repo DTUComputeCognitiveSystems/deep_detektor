@@ -11,7 +11,7 @@ class LogisticRegression(DetektorModel):
     def name(cls):
         return "LogisticRegression"
 
-    def __init__(self, tensor_provider, learning_rate=0.001, training_epochs=10, verbose=False):
+    def __init__(self, tensor_provider, learning_rate=0.001, training_epochs=20, verbose=False):
         """
         :param TensorProvider tensor_provider:
         :param float learning_rate:

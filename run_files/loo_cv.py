@@ -8,7 +8,7 @@ from sklearn.model_selection import LeaveOneOut
 from project_paths import ProjectPaths
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
     AreaUnderROC
-from evaluations.area_roc import plot_roc, ROC
+from evaluations.area_roc import plot_roc, ROC, plot_multiple_rocs, mean_rocs
 from models.baselines import MLP, LogisticRegression
 from models.recurrent.basic_recurrent import BasicRecurrent
 from util.tensor_provider import TensorProvider
@@ -122,19 +122,42 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
                     special_results[(model_class.name(), evalf.name(), program_nr)] = evalf(y_true=y_true,
                                                                                             y_pred=y_pred,
                                                                                             y_pred_binary=y_pred_binary)
-
+    ###
     # Plot ROC curves if wanted
-    for program_nr in range(len(unique_programs)):
-        for model_class in model_list:
+
+    # Go through models
+    models_mean_rocs = []
+    for model_class in model_list:
+        rocs = []
+        labels = []
+
+        # Go through programs
+        for program_nr in range(len(unique_programs)):
             key = (model_class.name(), "ROC", program_nr)
             if key in special_results:
-                positive_rate, negative_rate = special_results[key]
-                file_name = "ROC_{}_program{:02d}".format(model_class.name(), program_nr)
-                plot_roc(tp_rate=positive_rate,
-                         fp_rate=negative_rate,
-                         title=file_name)
-                save_fig(Path(path, file_name))
-                plt.close()
+                rocs.append(special_results[key])
+                labels.append("Program {}".format(program_nr))
+
+        # Plot ROCs for each program for this model
+        plot_multiple_rocs(rocs=rocs, labels=labels, center_line=False)
+        mean = mean_rocs(rocs)
+        models_mean_rocs.append(mean)
+        plot_roc(*mean, title=model_class.name(), label="Mean",
+                 color="black", linestyle="--")
+        plt.legend()
+
+        # Store figure
+        file_name = "ROC_{}".format(model_class.name())
+        save_fig(Path(path, file_name))
+        plt.close()
+
+    # Plot mean-ROCs for models
+    names = [model_class.name() for model_class in model_list]
+    plot_multiple_rocs(rocs=models_mean_rocs, labels=names, center_line=True,
+                       title="Models Mean-ROC")
+    plt.legend()
+    save_fig(Path(path, "Models_ROC"))
+    plt.close()
 
     if return_predictions:
         return classification_results, special_results, test_predictions
@@ -146,7 +169,7 @@ if __name__ == "__main__":
     the_tensor_provider = TensorProvider(verbose=True)
 
     # Choose number of programs to run though (None for all)
-    program_limit = 3
+    program_limit = None
 
     # Choose models
     models = [LogisticRegression, MLP]

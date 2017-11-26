@@ -140,4 +140,4 @@ if __name__ == "__main__":
         plot_roc(tp_rate=positive_rate,
                  fp_rate=negative_rate,
                  title="{} ROC".format(model.name()))
-        save_fig(Path(results_path, "ROC"), only_pdf=True)
+        save_fig(Path(results_path, "ROC"))
