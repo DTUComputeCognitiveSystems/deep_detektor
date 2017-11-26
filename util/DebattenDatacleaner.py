@@ -1,6 +1,6 @@
-
 import os
 import re
+
 
 class DebattenDatacleaner:
     """
@@ -8,9 +8,9 @@ class DebattenDatacleaner:
     """
     
     # Initialises class and input, output locations
-    def __init__(self, loc_raw=[], loc_pro=[]):
-        self.loc_raw_subtitles = loc_raw
-        self.loc_pro_subtitles = loc_pro
+    def __init__(self, loc_raw=None, loc_pro=None):
+        self.loc_raw_subtitles = loc_raw if loc_raw is not None else []
+        self.loc_pro_subtitles = loc_pro if loc_pro is not None else []
     
     def setRawFilesLocation(self, new_loc):
         self.loc_raw_subtitles = new_loc
