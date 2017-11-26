@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
-import project_paths
+from project_paths import ProjectPaths
 from evaluations.area_roc import ROC, plot_roc
 from models.baselines import LogisticRegression, MLP
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     model = LogisticRegression
 
     # Results path
-    results_path = Path(project_paths.results, "single_train", model.name())
+    results_path = Path(ProjectPaths.results, "single_train", model.name())
     ensure_folder(results_path)
 
     # Run training on a single model
@@ -141,4 +141,3 @@ if __name__ == "__main__":
                  fp_rate=negative_rate,
                  title="{} ROC".format(model.name()))
         save_fig(Path(results_path, "ROC"), only_pdf=True)
-

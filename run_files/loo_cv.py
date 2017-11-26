@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 from sklearn.model_selection import LeaveOneOut
 
-import project_paths
+from project_paths import ProjectPaths
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
     AreaUnderROC
 from evaluations.area_roc import plot_roc, ROC
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     models = [LogisticRegression, MLP]
 
     # Run LOO-program
-    loo_path = Path(project_paths.results, "LOO_CV")
+    loo_path = Path(ProjectPaths.results, "LOO_CV")
     results, s_results = leave_one_program_out_cv(tensor_provider=the_tensor_provider,
                                                   model_list=models,
                                                   limit=program_limit,
