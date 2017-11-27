@@ -10,7 +10,7 @@ class MLP(DetektorModel):
         return "MLP"
 
     def __init__(self, tensor_provider, hidden_units=2, learning_rate=0.001,
-                 training_epochs=20, verbose=False,
+                 training_epochs=20, verbose=False, use_bow=False, use_embedsum=True,
                  class_weights=np.array([1.0, 1.0])):
         """
         :param TensorProvider tensor_provider:
@@ -22,7 +22,7 @@ class MLP(DetektorModel):
         super().__init__()
 
         # Get number of features
-        self.num_features = tensor_provider.input_dimensions(bow=True)
+        self.num_features = tensor_provider.input_dimensions(bow=use_bow, embedding_sum=use_embedsum)
 
         # Settings
         self.learning_rate = learning_rate
@@ -30,6 +30,8 @@ class MLP(DetektorModel):
         self.training_epochs = training_epochs
         self.verbose = verbose
         self.class_weights = np.array(class_weights)
+        self.use_bow = use_bow
+        self.use_embedsum = use_embedsum
 
         ####
         # Build model
@@ -66,14 +68,14 @@ class MLP(DetektorModel):
             print(verbose * " " + "Fitting {}".format(self.name()))
             verbose += 2
 
-        # Get training data
-        data = tensor_provider.load_data_tensors(train_idx, bow=True, labels=True)
-
-        # Fetch data
-        x = data['bow']
+        # Get data
+        x = tensor_provider.load_concat_input_tensors(data_keys_or_idx=train_idx,
+                                                      bow=self.use_bow, embedding_sum=self.use_embedsum)
         if not isinstance(x, np.ndarray):
             x = x.todense()
-        y = data['labels']
+
+        # Load labels
+        y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
 
         # Training cycle
         for epoch in range(self.training_epochs):
@@ -90,7 +92,7 @@ class MLP(DetektorModel):
     def predict(self, tensor_provider, predict_idx, additional_fetch=None):
         # Get data
         input_tensor = tensor_provider.load_concat_input_tensors(data_keys_or_idx=predict_idx,
-                                                                 bow=True)
+                                                                 bow=self.use_bow, embedding_sum=self.use_embedsum)
 
         # Feeds
         feed_dict = {
