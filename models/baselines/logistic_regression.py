@@ -11,7 +11,8 @@ class LogisticRegression(DetektorModel):
     def name(cls):
         return "LogisticRegression"
 
-    def __init__(self, tensor_provider, learning_rate=0.001, training_epochs=20, verbose=False):
+    def __init__(self, tensor_provider, use_bow=False, use_embedsum=True,
+                 learning_rate=0.001, training_epochs=100, verbose=False):
         """
         :param TensorProvider tensor_provider:
         :param float learning_rate:
@@ -21,12 +22,14 @@ class LogisticRegression(DetektorModel):
         super().__init__()
 
         # Get number of features
-        self.num_features = tensor_provider.input_dimensions(bow=True)
+        self.num_features = tensor_provider.input_dimensions(bow=use_bow, embedding_sum=use_embedsum)
 
         # Settings
         self.learning_rate = learning_rate
         self.training_epochs = training_epochs
         self.verbose = verbose
+        self.use_bow = use_bow
+        self.use_embedsum = use_embedsum
 
         ####
         # Build model
@@ -59,13 +62,15 @@ class LogisticRegression(DetektorModel):
             verbose += 2
 
         # Get training data
-        data = tensor_provider.load_data_tensors(train_idx, bow=True, labels=True)
+        x = tensor_provider.load_concat_input_tensors(data_keys_or_idx=train_idx,
+                                                         bow=self.use_bow, embedding_sum=self.use_embedsum)
 
         # Fetch data
-        x = data['bow']
         if not isinstance(x, np.ndarray):
             x = x.todense()
-        y = data['labels']
+
+        # Load labels
+        y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
 
         # Training cycle
         for epoch in range(self.training_epochs):
@@ -82,7 +87,7 @@ class LogisticRegression(DetektorModel):
     def predict(self, tensor_provider, predict_idx, additional_fetch=None):
         # Get data
         input_tensor = tensor_provider.load_concat_input_tensors(data_keys_or_idx=predict_idx,
-                                                                 bow=True)
+                                                                 bow=self.use_bow, embedding_sum=self.use_embedsum)
 
         # Feeds
         feed_dict = {
@@ -99,3 +104,6 @@ class LogisticRegression(DetektorModel):
         binary_predictions = predictions > 0.5
 
         return predictions, binary_predictions
+
+
+
