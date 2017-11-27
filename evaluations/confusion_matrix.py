@@ -4,7 +4,7 @@ import numpy as np
 
 class TruePositives(Evaluation):
     def __call__(self, y_true, y_pred, y_pred_binary):
-        return sum(np.array(y_true) * np.array(y_pred))
+        return sum(np.array(y_true) * np.array(y_pred_binary))
 
     def name(self):
         return "TP"
