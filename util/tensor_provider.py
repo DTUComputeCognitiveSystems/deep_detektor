@@ -8,8 +8,7 @@ import numpy as np
 import tensorflow as tf
 
 from models.speller.recurrent_speller import RecurrentSpeller
-from project_paths import embeddings_file, pos_tags_file, speller_results_file, speller_char_vocab_file, \
-    speller_translator_file, speller_encoder_checkpoint_file, data_matrix_path
+from project_paths import ProjectPaths
 
 
 class TensorProvider:
@@ -25,11 +24,11 @@ class TensorProvider:
 
         if verbose:
             print("Loading character embedding.")
-        with speller_char_vocab_file.open("r") as file:
+        with ProjectPaths.speller_char_vocab_file.open("r") as file:
             self.char_embedding = json.load(file)
-        with speller_results_file.open("r") as file:
+        with ProjectPaths.speller_results_file.open("r") as file:
             speller_results = json.load(file)
-        with speller_translator_file.open("r") as file:
+        with ProjectPaths.speller_translator_file.open("r") as file:
             self.string_translator = {int(val[0]): val[1] for val in json.load(file).items()}
 
         with self._tf_graph.as_default():
@@ -40,7 +39,7 @@ class TensorProvider:
                                                       n_decoding_cells=self.char_embedding_size,
                                                       character_embedding=self.char_embedding,
                                                       end_of_word_char=end_of_word_char)
-            self.recurrent_speller.load_encoder(sess=self._sess, file_path=speller_encoder_checkpoint_file)
+            self.recurrent_speller.load_encoder(sess=self._sess, file_path=ProjectPaths.speller_encoder_checkpoint_file)
 
         ###################
         # Labels of original data
@@ -49,7 +48,7 @@ class TensorProvider:
             print("Loading labels.")
         self.labels = dict()
         self.keys = []
-        with data_matrix_path.open("r", encoding="utf-8") as file:
+        with ProjectPaths.data_matrix_path.open("r", encoding="utf-8") as file:
             csv_reader = csv.reader(file, delimiter=",")
 
             # Skip header
@@ -67,7 +66,7 @@ class TensorProvider:
         if verbose:
             print("Loading Word-Embeddings.")
         self.word_embeddings = dict()
-        with embeddings_file.open("r") as file:
+        with ProjectPaths.embeddings_file.open("r") as file:
             csv_reader = csv.reader(file, delimiter=",")
             for row in csv_reader:
                 self.word_embeddings[row[0]] = np.array(eval(row[1]))
@@ -84,7 +83,7 @@ class TensorProvider:
         self.tokens = dict()
         self.pos_vocabulary = set()
         self.vocabulary = set()
-        with pos_tags_file.open("r") as file:
+        with ProjectPaths.pos_tags_file.open("r") as file:
             csv_reader = csv.reader(file, delimiter=",")
             for row in csv_reader:
                 key = (int(eval(row[0])), int(eval(row[1])))

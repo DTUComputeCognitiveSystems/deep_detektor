@@ -8,9 +8,9 @@ class DebattenAnnotatedDatacleaner:
     """
     
     # Initialises class and input, output locations
-    def __init__(self, loc_ann=[], loc_out=[]):
-        self.loc_ann_subtitles = loc_ann
-        self.loc_out_subtitles = loc_out
+    def __init__(self, loc_ann=None, loc_out=None):
+        self.loc_ann_subtitles = loc_ann if loc_ann is not None else []
+        self.loc_out_subtitles = loc_out if loc_out is not None else []
     
     def setAnnotatedFilesLocation(self, new_loc):
         self.loc_ann_subtitles = new_loc

@@ -37,6 +37,7 @@ def save_fig(path, only_png=False, only_pdf=False, dpi=None, bbox_inches="tight"
     :param bool only_png:
     :param Path path: Path to save on, with filename but without extension
     """
+    ensure_folder(path.parent)
     options = dict(bbox_inches=bbox_inches)
     if facecolor is not None:
         options["facecolor"] = facecolor

@@ -9,7 +9,8 @@ class MLP(DetektorModel):
     def name(cls):
         return "MLP"
 
-    def __init__(self, tensor_provider, hidden_units=2, learning_rate=0.001, training_epochs=10, verbose=False,
+    def __init__(self, tensor_provider, hidden_units=2, learning_rate=0.001,
+                 training_epochs=20, verbose=False,
                  class_weights=np.array([1.0, 1.0])):
         """
         :param TensorProvider tensor_provider:
@@ -86,7 +87,7 @@ class MLP(DetektorModel):
         if verbose:
             print(verbose * " " + "Optimization Finished!")
 
-    def predict(self, tensor_provider, predict_idx, additional_fetch=None, binary=True):
+    def predict(self, tensor_provider, predict_idx, additional_fetch=None):
         # Get data
         input_tensor = tensor_provider.load_concat_input_tensors(data_keys_or_idx=predict_idx,
                                                                  bow=True)
@@ -102,8 +103,7 @@ class MLP(DetektorModel):
         else:
             predictions = self._sess.run(self.pred + additional_fetch, feed_dict=feed_dict)
 
-        # Optional binary conversion
-        if binary:
-            predictions = predictions > 0.5
+        # Binary conversion
+        binary_predictions = predictions > 0.5
 
-        return predictions
+        return predictions, binary_predictions
