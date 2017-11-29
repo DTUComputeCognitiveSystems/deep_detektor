@@ -112,6 +112,7 @@ class MLP(DetektorModel):
 
     def summary_to_string(self):
         result_str = ""
+        result_str += self.name() + "\n"
         result_str += "Num input features: %i\n"%self.num_features
         result_str += "Num hidden units: %i\n" % self.hidden_units
         result_str += "Class weights in cost-fun: (%f,%f)\n" %(self.class_weights[0], self.class_weights[1])

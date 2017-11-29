@@ -107,6 +107,7 @@ class LogisticRegression(DetektorModel):
 
     def summary_to_string(self):
         result_str = ""
+        result_str += self.name() + "\n"
         result_str += "Num input features: %i\n"%self.num_features
         result_str += "Learning rate: %f  \n"%self.learning_rate
         result_str += "Num training epochs: %i  \n" % self.training_epochs
