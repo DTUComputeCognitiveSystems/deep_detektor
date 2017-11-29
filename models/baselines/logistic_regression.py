@@ -11,8 +11,8 @@ class LogisticRegression(DetektorModel):
     def name(cls):
         return "LogisticRegression"
 
-    def __init__(self, tensor_provider, use_bow=False, use_embedsum=True,
-                 learning_rate=0.001, training_epochs=100, verbose=False):
+    def __init__(self, tensor_provider, use_bow=True, use_embedsum=False,
+                 learning_rate=0.001, training_epochs=20, verbose=False):
         """
         :param TensorProvider tensor_provider:
         :param float learning_rate:
@@ -105,5 +105,11 @@ class LogisticRegression(DetektorModel):
 
         return predictions, binary_predictions
 
-
-
+    def summary_to_string(self):
+        result_str = ""
+        result_str += "Num input features: %i\n"%self.num_features
+        result_str += "Learning rate: %f  \n"%self.learning_rate
+        result_str += "Num training epochs: %i  \n" % self.training_epochs
+        result_str += "Using BoW: %i  \n" % self.use_bow
+        result_str += "Using Embedsum: %i  \n" % self.use_embedsum
+        return result_str

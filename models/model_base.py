@@ -26,3 +26,7 @@ class DetektorModel:
 
     def predict(self, tensor_provider, predict_idx, additional_fetch=None):
         raise NotImplementedError
+
+    def summary_to_string(self):
+        # Coverts all relevant model properties to be printed
+        raise NotImplementedError

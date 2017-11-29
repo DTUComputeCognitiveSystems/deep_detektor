@@ -39,11 +39,18 @@ def single_training(tensor_provider, model_class,
     unique_programs = np.array(sorted(set(program_ids)))
 
     # Initialize array for holding results
-    special_results = dict()
+    special_results_train = dict()
     evaluation_names = [val.name() for val in eval_functions if val.is_single_value]
-    classification_results = np.full((1, len(evaluation_names)), np.nan)
-    classification_results = xr.DataArray(classification_results,
+    classification_results_train = np.full((1, len(evaluation_names)), np.nan)
+    classification_results_train = xr.DataArray(classification_results_train,
                                           name="Training Results",
+                                          dims=["Model", "Evaluation"],
+                                          coords=dict(Evaluation=evaluation_names,
+                                                      Model=[model_class.name()]))
+    special_results_test = dict()
+    classification_results_test = np.full((1, len(evaluation_names)), np.nan)
+    classification_results_test = xr.DataArray(classification_results_test,
+                                          name="Test Results",
                                           dims=["Model", "Evaluation"],
                                           coords=dict(Evaluation=evaluation_names,
                                                       Model=[model_class.name()]))
@@ -67,6 +74,9 @@ def single_training(tensor_provider, model_class,
     bow_vocabulary = tensor_provider.extract_programs_vocabulary(train_idx)
     tensor_provider.set_bow_vocabulary(bow_vocabulary)
 
+    # Get truth of train-set
+    y_true_train = tensor_provider.load_labels(data_keys_or_idx=train_idx)
+
     # Get truth of test-set
     y_true = tensor_provider.load_labels(data_keys_or_idx=test_idx)
 
@@ -78,6 +88,14 @@ def single_training(tensor_provider, model_class,
               train_idx=train_idx,
               verbose=2,
               results_path=path)
+
+    # Predict on training-data
+    y_pred_train, y_pred_train_binary = model.predict(tensor_provider=tensor_provider,
+                                          predict_idx=train_idx)
+    y_pred_train = np.squeeze(y_pred_train)
+    y_pred_train_binary = np.squeeze(y_pred_train_binary)
+
+    train_predictions = y_pred_train
 
     # Predict on test-data for performance
     y_pred, y_pred_binary = model.predict(tensor_provider=tensor_provider,
@@ -91,6 +109,21 @@ def single_training(tensor_provider, model_class,
     # Evaluate with eval_functions
     evaluation_nr = 0
     for evalf in eval_functions:
+        # Training evaluation
+        assert y_pred_train.shape == y_true_train.shape, "y_pred ({}) and y_true ({}) " \
+                                             "do not have same shape".format(y_pred_train.shape, y_true_train.shape)
+
+        if evalf.is_single_value:
+            evaluation_result = evalf(y_true=y_true_train,
+                                      y_pred=y_pred_train,
+                                      y_pred_binary=y_pred_train_binary)
+            classification_results_train[0, evaluation_nr] = evaluation_result
+        else:
+            special_results_train[(model_class.name(), evalf.name())] = evalf(y_true=y_true_train,
+                                                                        y_pred=y_pred_train,
+                                                                        y_pred_binary=y_pred_train_binary)
+
+        # Test evaluation
         assert y_pred.shape == y_true.shape, "y_pred ({}) and y_true ({}) " \
                                              "do not have same shape".format(y_pred.shape, y_true.shape)
 
@@ -98,16 +131,19 @@ def single_training(tensor_provider, model_class,
             evaluation_result = evalf(y_true=y_true,
                                       y_pred=y_pred,
                                       y_pred_binary=y_pred_binary)
-            classification_results[0, evaluation_nr] = evaluation_result
+            classification_results_test[0, evaluation_nr] = evaluation_result
             evaluation_nr += 1
         else:
-            special_results[(model_class.name(), evalf.name())] = evalf(y_true=y_true,
+            special_results_test[(model_class.name(), evalf.name())] = evalf(y_true=y_true,
                                                                         y_pred=y_pred,
                                                                         y_pred_binary=y_pred_binary)
 
     if return_predictions:
-        return classification_results, special_results, test_predictions
-    return classification_results, special_results
+        return classification_results_train, classification_results_test, \
+               special_results_train, special_results_test, model.summary_to_string(), \
+               train_predictions, test_predictions
+    return classification_results_train, classification_results_test, \
+           special_results_train, special_results_test, model.summary_to_string()
 
 
 if __name__ == "__main__":
@@ -115,29 +151,47 @@ if __name__ == "__main__":
     the_tensor_provider = TensorProvider(verbose=True)
 
     # Choose model
-    model = LogisticRegression
+    #model = LogisticRegression
+    model = MLP
 
     # Results path
     results_path = Path(ProjectPaths.results, "single_train", model.name())
     ensure_folder(results_path)
 
     # Run training on a single model
-    results, s_results = single_training(tensor_provider=the_tensor_provider,
+    results_train, results_test, \
+    s_results_train, s_results_test, \
+    model_summary = single_training(tensor_provider=the_tensor_provider,
                                          model_class=model,
                                          path=results_path)  # type: xr.DataArray
 
     # Print mean results
-    print("\nSingle training Results\n" + "-" * 75)
-    results = results._to_dataset_split("Model").to_dataframe()
+    results_train = results_train._to_dataset_split("Model").to_dataframe()
+    results_test = results_test._to_dataset_split("Model").to_dataframe()
     with Path(results_path, "results.txt").open("w") as file:
-        file.write(str(results))
-    print(results)
+        file.write(model_summary)
+        file.write(str(results_train))
+        file.write(str(results_test))
+
+    print("\nSingle training Results - TRAINING \n" + "-" * 75)
+    print(results_train)
+    print("\nSingle training Results - TEST \n" + "-" * 75)
+    print(results_test)
+    print("\nModel Summary \n" + "-" * 75)
+    print(model_summary)
 
     # Plot ROC if included
     roc_key = (model.name(), "ROC")
-    if roc_key in s_results:
-        positive_rate, negative_rate = s_results[roc_key]
+    if roc_key in s_results_train:
+        positive_rate, negative_rate = s_results_train[roc_key]
         plot_roc(tp_rate=positive_rate,
                  fp_rate=negative_rate,
-                 title="{} ROC".format(model.name()))
-        save_fig(Path(results_path, "ROC"))
+                 title="{} ROC Training".format(model.name()))
+        save_fig(Path(results_path, "ROC_Train"))
+
+    if roc_key in s_results_test:
+        positive_rate, negative_rate = s_results_test[roc_key]
+        plot_roc(tp_rate=positive_rate,
+                 fp_rate=negative_rate,
+                 title="{} ROC Test".format(model.name()))
+        save_fig(Path(results_path, "ROC_Test"))
