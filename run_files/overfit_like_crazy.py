@@ -4,7 +4,7 @@ import xarray as xr
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples
 import numpy as np
 from models.recurrent.basic_recurrent import BasicRecurrent
-from models.baselines import LogisticRegression
+from models.baselines import LogisticRegression, MLP
 from util.tensor_provider import TensorProvider
 import tensorflow as tf
 
@@ -23,8 +23,11 @@ the_tensor_provider = TensorProvider(verbose=True)
 #                          optimizer=tf.train.AdamOptimizer, word_embedding=True,
 #                           pos_tags=True, char_embedding=False)
 
-model = LogisticRegression(the_tensor_provider,  use_bow=True, use_embedsum=False,
-                 learning_rate=0.001, training_epochs=100, verbose=False)
+#model = LogisticRegression(the_tensor_provider,  use_bow=True, use_embedsum=False,
+#                 learning_rate=0.001, training_epochs=100, verbose=False)
+model = MLP(the_tensor_provider, hidden_units=10, learning_rate=0.01,
+                 training_epochs=50, verbose=False, use_bow=True, use_embedsum=True,
+                 class_weights=np.array([1.0, 100.0]))
 
 # Evaluation functions
 eval_functions = [Accuracy(), F1(), TruePositives(), TrueNegatives(), FalsePositives(), FalseNegatives(),
@@ -114,3 +117,6 @@ print(classification_results_training._to_dataset_split("Model").to_dataframe())
 
 print("\nSingle training Results -- TEST --\n" + "-" * 75)
 print(classification_results_test._to_dataset_split("Model").to_dataframe())
+
+print("\nModel Summary --\n" + "-" * 75)
+print(model.summary_to_string())

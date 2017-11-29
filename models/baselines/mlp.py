@@ -10,7 +10,7 @@ class MLP(DetektorModel):
         return "MLP"
 
     def __init__(self, tensor_provider, hidden_units=2, learning_rate=0.001,
-                 training_epochs=20, verbose=False, use_bow=False, use_embedsum=True,
+                 training_epochs=20, verbose=False, use_bow=True, use_embedsum=False,
                  class_weights=np.array([1.0, 1.0])):
         """
         :param TensorProvider tensor_provider:
@@ -109,3 +109,16 @@ class MLP(DetektorModel):
         binary_predictions = predictions > 0.5
 
         return predictions, binary_predictions
+
+    def summary_to_string(self):
+        result_str = ""
+        result_str += self.name() + "\n"
+        result_str += "Num input features: %i\n"%self.num_features
+        result_str += "Num hidden units: %i\n" % self.hidden_units
+        result_str += "Class weights in cost-fun: (%f,%f)\n" %(self.class_weights[0], self.class_weights[1])
+        result_str += "Learning rate: %f  \n"%self.learning_rate
+        result_str += "Num training epochs: %i  \n" % self.training_epochs
+        result_str += "Using BoW: %i  \n" % self.use_bow
+        result_str += "Using Embedsum: %i  \n" % self.use_embedsum
+
+        return result_str
