@@ -1,7 +1,9 @@
 import csv
 import json
 import random
+import sqlite3
 from collections import Counter
+from pathlib import Path
 from typing import Callable
 import matplotlib.pyplot as plt
 
@@ -50,17 +52,14 @@ class TensorProvider:
             print("Loading labels.")
         self.labels = dict()
         self.keys = []
-        with ProjectPaths.data_matrix_path.open("r", encoding="utf-8") as file:
-            csv_reader = csv.reader(file, delimiter=",")
-
-            # Skip header
-            next(csv_reader)
-
-            # Load file
-            for row in csv_reader:
-                key = (int(row[2]), int(row[3]))
-                self.keys.append(key)
-                self.labels[key] = bool(row[6])
+        database_path = Path(ProjectPaths.annotated_data_dir, "annotated_programs.db")
+        connection = sqlite3.connect("file:" + str(database_path) + "?mode=ro", uri=True)
+        cursor = connection.cursor()
+        rows = cursor.execute("SELECT program_id, sentence_id, claim_flag FROM programs").fetchall()
+        for row in rows:
+            key = (row[0], row[1])
+            self.keys.append(key)
+            self.labels[key] = bool(row[2])
 
         ###################
         # Word embeddings
@@ -71,7 +70,7 @@ class TensorProvider:
         with ProjectPaths.embeddings_file.open("r") as file:
             csv_reader = csv.reader(file, delimiter=",")
             for row in csv_reader:
-                self.word_embeddings[eval(row[0]).decode()] = np.array(eval(row[1]))
+                self.word_embeddings[row[0]] = np.array(eval(row[1]))
 
         # Word embedding length (+1 due to flag for unknown vectors)
         self.word_embedding_size = len(self.word_embeddings[list(self.word_embeddings.keys())[0]]) + 1
@@ -434,7 +433,7 @@ if __name__ == "__main__":
 
     tensor_provider = TensorProvider(verbose=True)
     print("\nTesting tensor provider.")
-    test_nrs = random.sample(range(len(tensor_provider.keys)), 10)
+    test_nrs = random.sample(range(len(tensor_provider.keys)), 20)
     data_keys = tensor_provider._convert_to_keys(test_nrs)
     test = tensor_provider.load_data_tensors(test_nrs,
                                              word_counts=True,

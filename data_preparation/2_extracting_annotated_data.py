@@ -48,7 +48,7 @@ program_name2id = dict(
 # Prepare data for database (strings and removing single-word claims)
 pattern = re.compile("^[\S]+$")
 database_data = [
-    [program_name2id[row[0]], row[1], row[2], str(row[4]), str(row[3])]
+    [program_name2id[row[0]], row[1], row[2], str(row[4]), str(row[3]), row[4] is not None]
     for row in data
     if not pattern.match(str(row[4])) or row[4] is None
 ]
@@ -71,13 +71,14 @@ cursor.execute(
     "sentence TEXT NOT NULL,"
     "claim TEXT,"
     "claim_idx TEXT,"
+    "claim_flag INTEGER NOT NULL,"
     "PRIMARY KEY (program_id, sentence_id)"
     ")"
 )
 
 print("\tInserting rows")
-insert_command = "INSERT INTO programs (program_id, sentence_id, sentence, claim, claim_idx)" \
-                 " VALUES (?, ?, ?, ?, ?)"
+insert_command = "INSERT INTO programs (program_id, sentence_id, sentence, claim, claim_idx, claim_flag)" \
+                 " VALUES (?, ?, ?, ?, ?, ?)"
 cursor.executemany(insert_command, database_data)
 
 print("\tCommitting and closing.")
