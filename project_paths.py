@@ -11,16 +11,23 @@ class ProjectPaths:
     dr_detektor_automatic_fact_checking_dir = Path(data_dir, "DRDetektorAutomaticFactChecking")
 
     # Data from annotation task (from DR)
-    annotated_subtitles = Path(dr_detektor_automatic_fact_checking_dir, "annotatorProgram", "annotatedSubtitles")
+    dr_annotated_subtitles_dir = Path(dr_detektor_automatic_fact_checking_dir, "annotatorProgram", "annotatedSubtitles")
+    subtitles_crawl = Path(deep_fact_dir, "subtitles crawl")
 
     # Data from data-cleaning
-    annotated = Path(deep_fact_dir, "annotated")
-    data_matrix_path = Path(annotated, "data_matrix_sample_programs.csv")
+    preannotated_dir = Path(deep_fact_dir, "preannotated")
+    annotated_data_dir = Path(deep_fact_dir, "annotated")
+    data_matrix_path = Path(annotated_data_dir, "data_matrix_sample_programs.csv")
+    all_programs = Path(preannotated_dir, "all_programs.pickle")
 
     # NLP-data from polyglot
     nlp_data_dir = Path(deep_fact_dir, "nlp_data")
-    embeddings_file = Path(nlp_data_dir, "embeddings.csv")
+    # embeddings_file = Path(nlp_data_dir, "embeddings.csv")  # No longer in use
     pos_tags_file = Path(nlp_data_dir, "pos_tags.csv")
+
+    # Fast-text
+    fast_text_dir = Path(deep_fact_dir, "fasttext")
+    embeddings_file = Path(fast_text_dir, "vectors.csv")
 
     # Character embedding from auto-encoding
     speller_dir = Path(deep_fact_dir, "spelling_model")
