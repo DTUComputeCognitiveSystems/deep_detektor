@@ -360,7 +360,7 @@ class TensorProvider:
     def load_data_tensors(self, data_keys_or_idx, word_counts=False, char_counts=False,
                           word_embedding=False, word_embedding_success=False,
                           pos_tags=False, char_embedding=False,
-                          bow=False, embedding_sum=False,
+                          bow=False, embedding_sum=False, embedding_mean=False,
                           labels=False):
         data_tensors = dict()
 
@@ -394,6 +394,10 @@ class TensorProvider:
         # Summed word-embeddings
         if embedding_sum:
             data_tensors["embedding_sum"] = self._get_word_embeddings_sum(tokens=tokens)
+
+        # Meaned word-embeddings
+        if embedding_mean:
+            data_tensors["embedding_mean"] = self._get_word_embeddings_sum(tokens=tokens, do_mean=True)
 
         # Data labels
         if labels:
