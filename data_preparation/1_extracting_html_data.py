@@ -2,12 +2,12 @@
 Fetches data from web-crawl and creates HTML-files that can be annotated.
 Also creates a database with all programs and sentences.
 """
+import sqlite3
 from pathlib import Path
 
 from data_preparation.classes.data_cleaner import DebattenDataCleaner
+from data_preparation.data_preparation_utility import clean_str
 from project_paths import ProjectPaths
-import sqlite3
-
 
 # Create data-cleaner
 data_cleaner = DebattenDataCleaner(raw_subtitles_dir=ProjectPaths.subtitles_crawl,
@@ -60,7 +60,7 @@ data_cleaner.export_programs(all_programs)
 
 print("\nCreating database for all programs")
 print("\tRemoving pre-existing database.")
-database_path = Path(ProjectPaths.preannotated_dir, "all_programs.db")
+database_path = Path(ProjectPaths.tensor_provider, "all_programs.db")
 if database_path.is_file():
     database_path.unlink()
 
@@ -89,7 +89,7 @@ for program_id in all_programs.keys():
     program_id = int(program_id)
 
     for sentence_nr, (start_time, end_time, sentence) in enumerate(zip(start_times, end_times, sentences)):
-        all_data.append([program_id, sentence_nr+1, sentence, start_time, end_time])
+        all_data.append([program_id, sentence_nr+1, clean_str(sentence), start_time, end_time])
 
 print("\tInserting rows")
 insert_command = "INSERT INTO programs (program_id, sentence_id, sentence, start_time, end_time)" \

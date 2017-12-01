@@ -17,20 +17,18 @@ class ProjectPaths:
     # Data from data-cleaning
     preannotated_dir = Path(deep_fact_dir, "preannotated")
     annotated_data_dir = Path(deep_fact_dir, "annotated")
-    data_matrix_path = Path(annotated_data_dir, "data_matrix_sample_programs.csv")
-    all_programs = Path(preannotated_dir, "all_programs.pickle")
+
+    # Data for tensor-provider (for models)
+    tensor_provider = Path(deep_fact_dir, "tensor_provider")
 
     # NLP-data from polyglot
-    nlp_data_dir = Path(deep_fact_dir, "nlp_data")
-    # embeddings_file = Path(nlp_data_dir, "embeddings.csv")  # No longer in use
-    pos_tags_file = Path(nlp_data_dir, "pos_tags.csv")
+    nlp_data_dir = Path(tensor_provider, "nlp_data")
 
     # Fast-text
-    fast_text_dir = Path(deep_fact_dir, "fasttext")
-    embeddings_file = Path(fast_text_dir, "vectors.csv")
+    fast_text_dir = Path(tensor_provider, "fasttext")
 
     # Character embedding from auto-encoding
-    speller_dir = Path(deep_fact_dir, "spelling_model")
+    speller_dir = Path(tensor_provider, "spelling_model")
     speller_results_file = Path(speller_dir, "results.json")
     speller_char_vocab_file = Path(speller_dir, "char_embedding.json")
     speller_translator_file = Path(speller_dir, "string_translator.json")

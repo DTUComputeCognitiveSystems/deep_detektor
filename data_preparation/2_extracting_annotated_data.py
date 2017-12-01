@@ -9,11 +9,12 @@ from pathlib import Path
 from editdistance import eval as editdistance
 
 from data_preparation.classes.annotated_data_cleaner import DebattenAnnotatedDataCleaner
+from data_preparation.data_preparation_utility import clean_str
 from project_paths import ProjectPaths
 
 # Set paths
 annotated_data_dir = ProjectPaths.dr_annotated_subtitles_dir  # Path where DR stores annotated data.
-storage_dir = ProjectPaths.annotated_data_dir
+storage_dir = ProjectPaths.tensor_provider
 
 # Open cleaner in directory
 annotatedData = DebattenAnnotatedDataCleaner(annotated_data_dir)
@@ -45,13 +46,42 @@ program_name2id = dict(
 #################################################################
 # annotated_programs.db
 
+sentence_id_skips = {
+    (2315222, 259),
+    (2315222, 260)
+}
+
 # Prepare data for database (strings and removing single-word claims)
 pattern = re.compile("^[\S]+$")
-database_data = [
-    [program_name2id[row[0]], row[1], row[2], str(row[4]), str(row[3]), row[4] is not None]
-    for row in data
-    if not pattern.match(str(row[4])) or row[4] is None
-]
+sentence_id = 0
+database_data = []
+c_program = None
+for row in data:
+    sentence_id += 1
+    program_id = program_name2id[row[0]]
+    sentence = clean_str(row[2])
+    claim = str(row[4])
+    claim_idx = str(row[3])
+    claim_flag = row[4] is not None
+
+    if c_program is None:
+        c_program = program_id
+    elif c_program != program_id:
+        sentence_id = 1
+        c_program = program_id
+
+    if (program_id, sentence_id) in sentence_id_skips:
+        sentence_id += 1
+
+    if not pattern.match(str(row[4])) or row[4] is None:
+        database_data.append([
+            program_id,
+            sentence_id,
+            sentence,
+            claim,
+            claim_idx,
+            claim_flag
+        ])
 
 print("\nCreating database for all programs")
 print("\tRemoving pre-existing database.")
@@ -99,7 +129,7 @@ for row in database_data:
     n_sentences_in_annotated_programs[row[0]] += 1
 
 # Data from web-crawl
-connection = sqlite3.connect(str(Path(ProjectPaths.preannotated_dir, "all_programs.db")))
+connection = sqlite3.connect(str(Path(ProjectPaths.tensor_provider, "all_programs.db")))
 cursor = connection.cursor()
 cursor.execute("SELECT program_id, sentence_id, sentence FROM programs")
 crawl_data = cursor.fetchall()
@@ -131,6 +161,7 @@ cursor.execute(
 
 # Make inspection-values
 rows = []
+break_count = 0
 for program_id in n_sentences_in_annotated_programs.keys():
     sentence_id = 0
     while True:
@@ -138,7 +169,11 @@ for program_id in n_sentences_in_annotated_programs.keys():
         key = (program_id, sentence_id)
 
         if key not in annotated_data_sentences and key not in crawl_data_sentences:
-            break
+            break_count += 1
+            if break_count > 4:
+                break
+            continue
+        break_count = 0
 
         annotated_sentence = annotated_data_sentences.get(key, "")
         crawl_sentence = crawl_data_sentences.get(key, "")
@@ -151,7 +186,6 @@ for program_id in n_sentences_in_annotated_programs.keys():
             relative_distance = None
 
         rows.append([program_id, sentence_id, crawl_sentence, annotated_sentence, distance, relative_distance])
-
 
 insert_command = "INSERT INTO programs (program_id, sentence_id, crawl_sentence, " \
                  "annotated_sentence, edit_distance, overlap)" \

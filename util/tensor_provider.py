@@ -5,6 +5,8 @@ import sqlite3
 from collections import Counter
 from pathlib import Path
 from typing import Callable
+
+import fasttext
 import matplotlib.pyplot as plt
 
 import nltk
@@ -52,28 +54,36 @@ class TensorProvider:
             print("Loading labels.")
         self.labels = dict()
         self.keys = []
-        database_path = Path(ProjectPaths.annotated_data_dir, "annotated_programs.db")
-        connection = sqlite3.connect("file:" + str(database_path) + "?mode=ro", uri=True)
+        database_path = Path(ProjectPaths.tensor_provider, "annotated_programs.db")
+        connection = sqlite3.connect(str(database_path))
         cursor = connection.cursor()
         rows = cursor.execute("SELECT program_id, sentence_id, claim_flag FROM programs").fetchall()
         for row in rows:
             key = (row[0], row[1])
             self.keys.append(key)
             self.labels[key] = bool(row[2])
+        cursor.close()
+        connection.close()
 
         ###################
         # Word embeddings
 
-        if verbose:
-            print("Loading Word-Embeddings.")
+        # # Load fasttext-model
+        # if verbose:
+        #     print("Loading fastText.")
+        # self.word_embeddings = fasttext.load_model(str(Path(ProjectPaths.fast_text_dir, 'model.bin')),
+        #                                            encoding='utf-8')
+
         self.word_embeddings = dict()
-        with ProjectPaths.embeddings_file.open("r") as file:
-            csv_reader = csv.reader(file, delimiter=",")
-            for row in csv_reader:
-                self.word_embeddings[row[0]] = np.array(eval(row[1]))
+        database_path = Path(ProjectPaths.fast_text_dir, "vectors.db")
+        connection = sqlite3.connect(str(database_path))
+        cursor = connection.cursor()
+        rows = cursor.execute("SELECT token, vector FROM embeddings").fetchall()
+        for row in rows:
+            self.word_embeddings[row[0]] = np.array(eval(row[1]))
 
         # Word embedding length (+1 due to flag for unknown vectors)
-        self.word_embedding_size = len(self.word_embeddings[list(self.word_embeddings.keys())[0]]) + 1
+        self.word_embedding_size = len(self.word_embeddings['0']) + 1
 
         ###################
         # Tokenized texts and POS-tags
@@ -84,17 +94,20 @@ class TensorProvider:
         self.tokens = dict()
         self.pos_vocabulary = set()
         self.vocabulary = set()
-        with ProjectPaths.pos_tags_file.open("r") as file:
-            csv_reader = csv.reader(file, delimiter=",")
-            for row in csv_reader:
-                key = (int(eval(row[0])), int(eval(row[1])))
-                pos_tags = eval(row[2])
-                tokens = [val.decode() for val in eval(row[3])]
 
-                self.pos_vocabulary.update(pos_tags)
-                self.vocabulary.update(tokens)
-                self.pos_tags[key] = pos_tags
-                self.tokens[key] = tokens
+        database_path = Path(ProjectPaths.nlp_data_dir, "nlp_data.db")
+        connection = sqlite3.connect(str(database_path))
+        cursor = connection.cursor()
+        rows = cursor.execute("SELECT program_id, sentence_id, pos, tokens FROM tagger").fetchall()
+        for row in rows:
+            key = (row[0], row[1])
+            pos_tags = json.loads(row[2])
+            tokens = json.loads(row[3])
+
+            self.pos_vocabulary.update(pos_tags)
+            self.vocabulary.update(tokens)
+            self.pos_tags[key] = pos_tags
+            self.tokens[key] = tokens
         self.pos_vocabulary = {val: idx for idx, val in enumerate(sorted(list(self.pos_vocabulary)))}
         self.vocabulary = {val: idx for idx, val in enumerate(sorted(list(self.vocabulary)))}
         self.pos_embedding_size = len(self.pos_vocabulary)
@@ -103,9 +116,10 @@ class TensorProvider:
         ###################
         # BOW-settings
 
-        # Set an transformer for BOW (ex. stemmer)
-        stemmer = nltk.stem.SnowballStemmer('danish')
-        self.bow_transformer = lambda x: stemmer.stem(x.lower())  # type: Callable
+        # # Set an transformer for BOW (ex. stemmer)
+        # stemmer = nltk.stem.SnowballStemmer('danish')
+        # self.bow_transformer = lambda x: stemmer.stem(x.lower())  # type: Callable
+        self.bow_transformer = None
 
         # The set of known words
         if self.bow_transformer is None:
@@ -119,12 +133,14 @@ class TensorProvider:
         self.bow_vocabulary = self._complete_bow_vocabulary if vocabulary is None else vocabulary
 
     def _get_known_word(self, word: str):
+        # return word.translate(self.string_translator)
+
         operations = [
             lambda x: x,
             lambda x: x.translate(self.string_translator),
-            lambda x: self.bow_transformer(x),
-            lambda x: self.bow_transformer(x.translate(self.string_translator))
-        ]
+        ] + ([lambda x: self.bow_transformer(x),
+              lambda x: self.bow_transformer(x.translate(self.string_translator))
+              ] if self.bow_transformer is not None else [])
 
         for operation in operations:
             c_word = operation(word)
@@ -395,10 +411,11 @@ class TensorProvider:
         return data_tensors
 
 
-def reshape_square(a_matrix, pad_mode=0, return_pad_mask=False):
+def reshape_square(a_matrix, pad_value=0, return_pad_mask=False):
     """
     Reshapes any weirds sized numpy-tensor into a square matrix that can be plotted.
     :param np.ndarray a_matrix:
+    :param float | int pad_value: Valuee to pad with.
     :return:
     """
 
@@ -416,7 +433,7 @@ def reshape_square(a_matrix, pad_mode=0, return_pad_mask=False):
     sides = int(np.ceil(np.sqrt(current_elements)))
     total_elements = int(sides ** 2)
     pad_elements = total_elements - current_elements
-    flattened = pad_method(flattened, pad_mode, pad_elements)
+    flattened = pad_method(flattened, pad_value, pad_elements)
     square = flattened.reshape((sides, sides))
 
     if not return_pad_mask:
@@ -429,6 +446,7 @@ def reshape_square(a_matrix, pad_mode=0, return_pad_mask=False):
 
 
 if __name__ == "__main__":
+    sparse = {"bow"}
     plt.close("all")
 
     tensor_provider = TensorProvider(verbose=True)
@@ -447,20 +465,43 @@ if __name__ == "__main__":
                                              labels=True)
     test_tokens = tensor_provider.load_tokens(test_nrs)
 
-    for key in test.keys():
-        if not isinstance(test[key], dict):
+    print("Shapes:")
+    for key, val in test.items():
+        if isinstance(val, dict):
+            print("\t{} : dict {}".format(key, len(val)))
+        elif isinstance(val, np.ndarray):
+            print("\t{} : Array {}".format(key, val.shape))
+        else:
+            print("\t{} : Unknown type: {}".format(key, type(val).__name__))
+
+    for key, tensor in test.items():
+        if not isinstance(tensor, dict):
             plt.figure()
 
-            tensor = test[key]
             if len(tensor.shape) == 1:
                 plt.imshow(np.expand_dims(tensor, 0), aspect="auto")
+                plt.xlabel("Sample")
+                plt.yticks([])
+                plt.colorbar()
+
             elif len(tensor.shape) == 2:
-                plt.imshow(tensor, aspect="auto")
+                if key in sparse:
+                    x, y = np.where(tensor != 0)
+                    plt.scatter(x, y)
+                else:
+                    plt.imshow(tensor.T, aspect="auto")
+                plt.xlabel("Sample")
+                plt.ylabel("Features")
+
             else:
                 rows = cols = np.math.ceil(np.math.sqrt(tensor.shape[0]))
+                if rows * (cols - 1) == tensor.shape[0]:
+                    cols -= 1
                 for nr in range(tensor.shape[0]):
                     plt.subplot(rows, cols, nr+1)
                     plt.imshow(tensor[nr, :, :])
+                    plt.xlabel(key)
+                    plt.ylabel("Time")
             plt.suptitle(key)
         else:
             print(key)
