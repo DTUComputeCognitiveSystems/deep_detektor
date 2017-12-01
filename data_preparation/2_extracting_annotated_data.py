@@ -66,7 +66,7 @@ pattern = re.compile("^[\S]+$")
 sentence_id = 0
 database_data = []
 c_program = None
-for row in data:
+for row_nr, row in enumerate(data):
     sentence_id += 1
     program_id = program_name2id[row[0].strip()]
     sentence = clean_str(row[2])
@@ -83,15 +83,15 @@ for row in data:
     if (program_id, sentence_id) in sentence_id_skips:
         sentence_id += 1
 
-    if not pattern.match(str(row[4])) or row[4] is None:
-        database_data.append([
-            program_id,
-            sentence_id,
-            sentence,
-            claim,
-            claim_idx,
-            claim_flag
-        ])
+    # if not pattern.match(str(row[4])) or row[4] is None:
+    database_data.append([
+        program_id,
+        sentence_id,
+        sentence,
+        claim,
+        claim_idx,
+        claim_flag
+    ])
 
 print("\nCreating database for all programs")
 print("\tRemoving pre-existing database.")
