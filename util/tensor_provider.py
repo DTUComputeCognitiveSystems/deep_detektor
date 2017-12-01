@@ -6,7 +6,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Callable
 
-import fasttext
+import fastText
 import matplotlib.pyplot as plt
 
 import nltk
@@ -68,22 +68,11 @@ class TensorProvider:
         ###################
         # Word embeddings
 
-        # # Load fasttext-model
-        # if verbose:
-        #     print("Loading fastText.")
-        # self.word_embeddings = fasttext.load_model(str(Path(ProjectPaths.fast_text_dir, 'model.bin')),
-        #                                            encoding='utf-8')
-
-        self.word_embeddings = dict()
-        database_path = Path(ProjectPaths.fast_text_dir, "vectors.db")
-        connection = sqlite3.connect(str(database_path))
-        cursor = connection.cursor()
-        rows = cursor.execute("SELECT token, vector FROM embeddings").fetchall()
-        for row in rows:
-            self.word_embeddings[row[0]] = np.array(eval(row[1]))
-
-        # Word embedding length (+1 due to flag for unknown vectors)
-        self.word_embedding_size = len(self.word_embeddings['0']) + 1
+        # Load fasttext-model
+        if verbose:
+            print("Loading fastText.")
+        self.word_embeddings = fastText.load_model(str(Path(ProjectPaths.fast_text_dir, 'model.bin')))
+        self.word_embedding_size = int(self.word_embeddings.get_dimension())
 
         ###################
         # Tokenized texts and POS-tags
@@ -117,9 +106,8 @@ class TensorProvider:
         # BOW-settings
 
         # # Set an transformer for BOW (ex. stemmer)
-        # stemmer = nltk.stem.SnowballStemmer('danish')
-        # self.bow_transformer = lambda x: stemmer.stem(x.lower())  # type: Callable
-        self.bow_transformer = None
+        stemmer = nltk.stem.SnowballStemmer('danish')
+        self.bow_transformer = lambda x: stemmer.stem(x.lower())  # type: Callable
 
         # The set of known words
         if self.bow_transformer is None:
@@ -132,24 +120,6 @@ class TensorProvider:
     def set_bow_vocabulary(self, vocabulary=None):
         self.bow_vocabulary = self._complete_bow_vocabulary if vocabulary is None else vocabulary
 
-    def _get_known_word(self, word: str):
-        # return word.translate(self.string_translator)
-
-        operations = [
-            lambda x: x,
-            lambda x: x.translate(self.string_translator),
-        ] + ([lambda x: self.bow_transformer(x),
-              lambda x: self.bow_transformer(x.translate(self.string_translator))
-              ] if self.bow_transformer is not None else [])
-
-        for operation in operations:
-            c_word = operation(word)
-            if c_word in self.word_embeddings:
-                return c_word
-
-        # Word not known
-        return None
-
     def _get_word_embeddings(self, tokens, n_words=None):
 
         # Determine longest sentence (in word-count)
@@ -159,44 +129,21 @@ class TensorProvider:
         # Initialize array
         out_array = np.full((len(tokens), n_words, self.word_embedding_size), self.fill, dtype=np.float64)
 
-        # Default vector (for unknown words)
-        unknown_vector = np.array([0] * self.word_embedding_size)
-        unknown_vector[-1] = 1
-
         # Insert word-vectors
-        success = dict()
         for text_nr, text in enumerate(tokens):
             for word_nr, word in enumerate(text):
-                c_word = self._get_known_word(word)
-                if c_word is not None:
-                    c_embedding = self.word_embeddings[c_word]
-                    out_array[text_nr, word_nr, :-1] = c_embedding
-                    success[c_word] = True
-                else:
-                    out_array[text_nr, word_nr, :] = unknown_vector
-                    success[c_word] = False
+                out_array[text_nr, word_nr, :] = self.word_embeddings.get_word_vector(word)
 
         # Return
-        return out_array, success
+        return out_array
 
     def _get_word_embeddings_sum(self, tokens, do_mean=False):
 
         # Initialize array
-        out_array = np.full((len(tokens), self.word_embedding_size), self.fill, dtype=np.float64)
+        out_array = self._get_word_embeddings(tokens=tokens)
 
-        # Default vector (for unknown words)
-        unknown_vector = np.array([0] * self.word_embedding_size)
-        unknown_vector[-1] = 1
-
-        # Insert word-vectors
-        for text_nr, text in enumerate(tokens):
-            for word_nr, word in enumerate(text):
-                c_word = self._get_known_word(word)
-                if c_word is not None:
-                    c_embedding = self.word_embeddings[c_word]
-                    out_array[text_nr, :-1] += c_embedding
-                else:
-                    out_array[text_nr, :] += unknown_vector
+        # Compute sum
+        out_array = out_array.sum(axis=1)
 
         # Compute means if wanted
         if do_mean:
@@ -374,10 +321,7 @@ class TensorProvider:
 
         # Word embeddings
         if word_embedding:
-            embeddings, successes = self._get_word_embeddings(tokens=tokens, n_words=n_words)
-            data_tensors["word_embedding"] = embeddings
-            if word_embedding_success:
-                data_tensors["word_embedding_success"] = successes
+            data_tensors["word_embedding"] = self._get_word_embeddings(tokens=tokens, n_words=n_words)
 
         # Pos tags
         if pos_tags:
@@ -466,6 +410,7 @@ if __name__ == "__main__":
                                              char_embedding=True,
                                              bow=True,
                                              embedding_sum=True,
+                                             embedding_mean=True,
                                              labels=True)
     test_tokens = tensor_provider.load_tokens(test_nrs)
 
