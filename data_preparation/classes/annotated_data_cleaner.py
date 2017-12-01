@@ -42,9 +42,13 @@ class DebattenAnnotatedDataCleaner:
             doc = f.read()
 
         # Find program id
-        m_program_id = re.compile('program[\d]+')
+        # m_program_id = re.compile('program[\d]+')
+        m_program_id = re.compile('ram[ \d]+"')
+        # print('\n ')
+
         m = re.search(m_program_id, doc)
         program_id = m.group()
+        program_id = program_id[3:-1].strip()
 
         sentences = doc.split('<p ')
         m_sentence_id = re.compile('id="[\d]+">')
@@ -117,16 +121,23 @@ class DebattenAnnotatedDataCleaner:
         indices = []
         # Get matched indices
         for m in s_highlighted:
-            m_pattern = re.compile(m)
-            match = re.search(m_pattern, s)
-            if match:
-                indices.append([getLeadingSpace(s, match.start()),
-                                getTailingSpace(s, match.end())])
+
+            if m is not '?':
+
+                m_pattern = re.compile(m)
+                match = re.search(m_pattern, s)
+                # print(type(match))
+                if match:
+                    indices.append([getLeadingSpace(s, match.start()),
+                                    getTailingSpace(s, match.end())])
+                else:
+
+                    print(match)
+                    print(m)
+                    print(s_highlighted)
+                    print(s + '\n')
             else:
-                print(match)
-                print(m)
-                print(s_highlighted)
-                print(s + '\n')
+                print('Annotation bug. A single question mark was annotated..')
 
         # print('\n\n')
         return indices
@@ -150,8 +161,8 @@ class DebattenAnnotatedDataCleaner:
 
             for idx in indices_highlights:
                 if sentences_highlight[i]:
-                    sentences_highlight[i] = sentences_highlight[i] + ' [new claim]: ' + sentences_processed[i][
-                                                                                         idx[0]:idx[1]]
+                    sentences_highlight[i] = sentences_highlight[i] + ' [new claim]: ' \
+                                             + sentences_processed[i][idx[0]:idx[1]]
                 else:
                     sentences_highlight[i] = sentences_processed[i][idx[0]:idx[1]]
 
@@ -161,7 +172,7 @@ class DebattenAnnotatedDataCleaner:
     def processMultiClaim(self, s, idx):
         merge_claims = []
         for c in range(len(idx) - 1):
-            if abs(idx[c][1] - idx[c + 1][0]) == 1:  # It is the same claim
+            if idx[c][1] - idx[c + 1][0] >= -1:  # It is the same claim
                 merge_claims.append(True)
             else:
                 merge_claims.append(False)
@@ -207,24 +218,26 @@ class DebattenAnnotatedDataCleaner:
         total_sentences = 0
 
         for f in range(len(file_paths)):
-            all_program_id[f], all_sentences_id[f], sentences = self.getProgramAndSentences(file_paths[f])
+            all_program_id[f], all_sentences_id[f], sentences = \
+                self.getProgramAndSentences(file_paths[f])
             if disp: print('Program id {:s}'.format(all_program_id[f]))
 
-            all_sentences[f], all_highlights[f], all_highlights_ind[f] = self.getCleanedProgramSentences(sentences)
+            all_sentences[f], all_highlights[f], all_highlights_ind[f] = \
+                self.getCleanedProgramSentences(sentences)
 
             num_claims = len(list(filter(None, all_highlights[f])))
-            if disp: print(
-                '\tThere were {:d} claims out of {:d} sentences ({:2.2f}%)'.format(num_claims, len(sentences),
-                                                                                   num_claims / float(
-                                                                                       len(sentences)) * 100))
+            if disp: print('\tThere were {:d} claims out of {:d} sentences ({:2.2f}%)'.format(num_claims
+                                                                                              , len(sentences),
+                                                                                              num_claims / float(len(
+                                                                                                  sentences)) * 100))
 
             total_claims = total_claims + num_claims
             total_sentences = total_sentences + len(sentences)
 
-        if disp: print(
-            '\nIn total there were {:d} claims out of {:d} sentences ({:2.2f}%)'.format(total_claims, total_sentences,
-                                                                                        total_claims / float(
-                                                                                            total_sentences) * 100))
+        if disp: print('\nIn total there were {:d} claims out of {:d} sentences ({:2.2f}%)'.format(total_claims
+                                                                                                   , total_sentences,
+                                                                                                   total_claims / float(
+                                                                                                       total_sentences) * 100))
 
         # ...
         labels = ['program_id', 'sentence_id', 'sentence', 'claim_idx', 'claim']
@@ -237,7 +250,7 @@ class DebattenAnnotatedDataCleaner:
             for si in range(len(all_sentences[p])):
                 data[i][0] = all_program_id[p]
 
-                data[i][1] = all_sentences_id[p][si]
+                data[i][1] = si + 1  # Sentence ID is not correct in all files#all_sentences_id[p][si]
                 data[i][2] = all_sentences[p][si]
 
                 if len(all_highlights_ind[p][si]) == 1:
@@ -251,7 +264,8 @@ class DebattenAnnotatedDataCleaner:
                     # print(all_sentences[p][si])
                     print(all_highlights_ind[p][si])
                     print(all_highlights[p][si])
-                    new_s, new_idx = self.processMultiClaim(all_sentences[p][si], all_highlights_ind[p][si])
+                    new_s, new_idx = self.processMultiClaim(all_sentences[p][si],
+                                                            all_highlights_ind[p][si])
 
                     print('Trying to handle this multi-claim, is the output correct?')
                     print(new_idx)

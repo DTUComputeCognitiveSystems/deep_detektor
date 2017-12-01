@@ -27,18 +27,28 @@ data, labels = annotatedData.getAllCleanedProgramSentences(disp=True)
 N = len(data)
 
 # Conversion from file-name to program ID (manually inspected in databases)
-program_name2id = dict(
-    program1=7308025,
-    program2=2294023,
-    program3=2315222,
-    program4=2337314,
-    program5=2359717,
-    program6=2304494,
-    program7=2348260,
-    program8=3411204,
-    program9=3570949,
-    program10=3662558
-)
+program_name2id = {
+    "1": 7308025,
+    "2": 2294023,
+    "3": 2315222,
+    "4": 2337314,
+    "5": 2359717,
+    "6": 2304494,
+    "7": 2348260,
+    "8": 3411204,
+    "9": 3570949,
+    "10": 3662558,
+    "8567181": 8567181,
+    "8567636": 8567636,
+    "8568658": 8568658,
+    "8568906": 8568906,
+    "8610238": 8610238,
+    "8635201": 8635201,
+    "8665813": 8665813,
+    "8689224": 8689224,
+    "8720741": 8720741,
+    "9284846": 9284846,
+}
 
 # Program 2337314 sentence 1 is incorrect in annotated dataset !
 
@@ -58,7 +68,7 @@ database_data = []
 c_program = None
 for row in data:
     sentence_id += 1
-    program_id = program_name2id[row[0]]
+    program_id = program_name2id[row[0].strip()]
     sentence = clean_str(row[2])
     claim = str(row[4])
     claim_idx = str(row[3])
@@ -153,8 +163,8 @@ cursor.execute(
     "sentence_id INTEGER NOT NULL,"
     "crawl_sentence TEXT NOT NULL,"
     "annotated_sentence TEXT NOT NULL,"
-    "edit_distance INTEGER,"
     "overlap REAL,"
+    "edit_distance INTEGER,"
     "PRIMARY KEY (program_id, sentence_id)"
     ")"
 )
@@ -185,10 +195,10 @@ for program_id in n_sentences_in_annotated_programs.keys():
         else:
             relative_distance = None
 
-        rows.append([program_id, sentence_id, crawl_sentence, annotated_sentence, distance, relative_distance])
+        rows.append([program_id, sentence_id, crawl_sentence, annotated_sentence, relative_distance, distance])
 
 insert_command = "INSERT INTO programs (program_id, sentence_id, crawl_sentence, " \
-                 "annotated_sentence, edit_distance, overlap)" \
+                 "annotated_sentence, overlap, edit_distance)" \
                  " VALUES (?, ?, ?, ?, ?, ?)"
 cursor.executemany(insert_command, rows)
 
