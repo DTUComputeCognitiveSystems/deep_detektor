@@ -1,5 +1,5 @@
 from pathlib import Path
-
+import numpy as np
 import matplotlib.pyplot as plt
 
 
@@ -49,3 +49,44 @@ def save_fig(path, only_png=False, only_pdf=False, dpi=None, bbox_inches="tight"
     if not only_png:
         fig = plt.gcf()
         fig.savefig(str(path) + '.pdf', format='pdf', pad_inches=0, **options)  # , dpi=axes_dpi
+
+def get_next_bacth(data, labels, batch_size=None, strategy="weighted_sampling"):
+    """
+      Get next batch for mini_batch training
+      :param array-like data: input data that from which a batch should be sampled
+      :param labels: data class labels
+      :param int batch_size: number of examples in batch sampled
+      :param string strategy: specifies what strategy to use when getting new batch
+      :return data_batch and labels_batch
+      """
+
+    # If no batch size is specified return input
+    if batch_size==None or strategy=="full":
+        return data, labels
+
+    # Get number of observations
+    n_obs = data.shape[0]
+    assert(n_obs == len(labels))
+
+    # Based on strategy input do different things:
+    if strategy == "weighted_sampling":
+        # Get inverse-frequency of each class
+        non_claim_if = 1.0 / sum(labels == 0)
+        claim_if = 1.0 / sum(labels == 1)
+
+        # Construct sampling weights for each observation
+        sample_weights = np.empty((n_obs))
+        sample_weights[labels == 0] = non_claim_if
+        sample_weights[labels == 1] = claim_if
+        sample_weights = sample_weights / sum(sample_weights)  # normalize to yield probabilities
+
+        # Get indices for batch
+        c_indices = np.random.choice(range(n_obs), batch_size, replace=False,
+                                     p=sample_weights)
+
+        data_batch = data[c_indices, ]
+        labels_batch = labels[c_indices]
+    else:
+        raise NotImplementedError
+
+    return data_batch, labels_batch

@@ -1,10 +1,10 @@
 import numpy as np
 import tensorflow as tf
-
 from util.tensor_provider import TensorProvider
+from util.utilities import get_next_bacth
 
 from models.model_base import DetektorModel
-
+from math import ceil
 
 class LogisticRegression(DetektorModel):
     @classmethod
@@ -12,7 +12,8 @@ class LogisticRegression(DetektorModel):
         return "LogisticRegression"
 
     def __init__(self, tensor_provider, use_bow=True, use_embedsum=False,
-                 learning_rate=0.001, training_epochs=20, verbose=False):
+                 learning_rate=0.001, training_epochs=20,
+                 batch_size=None, verbose=False, batch_strategy="full"):
         """
         :param TensorProvider tensor_provider:
         :param float learning_rate:
@@ -30,6 +31,8 @@ class LogisticRegression(DetektorModel):
         self.verbose = verbose
         self.use_bow = use_bow
         self.use_embedsum = use_embedsum
+        self.batch_size = batch_size
+        self.batch_strategy = batch_strategy
 
         ####
         # Build model
@@ -74,8 +77,22 @@ class LogisticRegression(DetektorModel):
 
         # Training cycle
         for epoch in range(self.training_epochs):
-            _, c = self._sess.run([self.optimizer, self.cost], feed_dict={self.x: x,
+            if self.batch_strategy == "full":
+                _, c = self._sess.run([self.optimizer, self.cost], feed_dict={self.x: x,
                                                                           self.y: y})
+            else:
+                n_updates = int(ceil(x.shape[0]/self.batch_size))
+                for n in range(n_updates):
+                    x_batch, y_batch = get_next_bacth(data=x, labels=y,
+                                                      batch_size=self.batch_size,
+                                                      strategy=self.batch_strategy)
+                    _, c = self._sess.run([self.optimizer, self.cost], feed_dict={self.x: x_batch,
+                                                                                  self.y: y_batch})
+
+                # Calculate cost on entire training data
+                c = self._sess.run([self.cost], feed_dict={self.x: x, self.y: y})
+
+
             # Display logs per epoch step
             if verbose:
                 if (epoch + 1) % display_step == 0 and verbose:
