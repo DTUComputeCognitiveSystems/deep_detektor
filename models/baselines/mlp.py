@@ -1,7 +1,9 @@
 import numpy as np
 import tensorflow as tf
 
+from util.utilities import get_next_bacth
 from models.model_base import DetektorModel
+from math import ceil
 
 
 class MLP(DetektorModel):
@@ -11,7 +13,7 @@ class MLP(DetektorModel):
 
     def __init__(self, tensor_provider, hidden_units=2, learning_rate=0.001,
                  training_epochs=20, verbose=False, use_bow=True, use_embedsum=False,
-                 class_weights=np.array([1.0, 1.0])):
+                 class_weights=np.array([1.0, 1.0]), batch_size=None, batch_strategy="full"):
         """
         :param TensorProvider tensor_provider:
         :param int hidden_units:
@@ -32,6 +34,8 @@ class MLP(DetektorModel):
         self.class_weights = np.array(class_weights)
         self.use_bow = use_bow
         self.use_embedsum = use_embedsum
+        self.batch_size = batch_size
+        self.batch_strategy = batch_strategy
 
         ####
         # Build model
@@ -79,8 +83,22 @@ class MLP(DetektorModel):
 
         # Training cycle
         for epoch in range(self.training_epochs):
-            _, c = self._sess.run([self.optimizer, self.cost], feed_dict={self.x: x,
-                                                                    self.y: y})
+            if self.batch_strategy == "full" or self.batch_size is None:
+                _, c = self._sess.run([self.optimizer, self.cost], feed_dict={self.x: x,
+                                                                          self.y: y})
+            else:
+                n_updates = int(ceil(x.shape[0]/self.batch_size))
+                for n in range(n_updates):
+                    x_batch, y_batch = get_next_bacth(data=x, labels=y,
+                                                      batch_size=self.batch_size,
+                                                      strategy=self.batch_strategy)
+                    _, c = self._sess.run([self.optimizer, self.cost], feed_dict={self.x: x_batch,
+                                                                                  self.y: y_batch})
+
+                # Calculate cost on entire training data
+                c = self._sess.run([self.cost], feed_dict={self.x: x, self.y: y})
+                c = c[0]
+
             # Display logs per epoch step
             if verbose:
                 if (epoch + 1) % display_step == 0 and verbose:
@@ -120,5 +138,6 @@ class MLP(DetektorModel):
         result_str += "Num training epochs: %i  \n" % self.training_epochs
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum
-
+        if self.batch_size is not None:
+            result_str += "Batch Size: %i \n" % self.batch_size
         return result_str

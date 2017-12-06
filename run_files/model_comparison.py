@@ -133,7 +133,7 @@ def model_comparison(tensor_provider, model_list,
 
 if __name__ == "__main__":
     # Test programs
-    test_programs_idx = [0]
+    test_programs_idx = [0, 1]
 
     # Initialize tensor-provider (data-source)
     the_tensor_provider = TensorProvider(verbose=True)
@@ -164,10 +164,10 @@ if __name__ == "__main__":
     the_tensor_provider.set_bow_vocabulary(bow_vocabulary)
 
     # Choose models
-    model_list = [LogisticRegression(the_tensor_provider, use_bow=True, use_embedsum=False, training_epochs=100, learning_rate=0.001, batch_size=400, batch_strategy="weighted_sampling")]
-    #model_list = [LogisticRegression(the_tensor_provider, use_bow=True, use_embedsum=False, training_epochs=100, learning_rate=0.1),
-    #              LogisticRegression(the_tensor_provider, use_bow=False, use_embedsum=True, training_epochs=100, learning_rate=0.1),
-    #              MLP(the_tensor_provider, use_bow=True, use_embedsum=True, training_epochs=1000, hidden_units=100, learning_rate=0.1)]
+    model_list = [LogisticRegression(the_tensor_provider, use_bow=True, use_embedsum=False, training_epochs=100,
+                                     learning_rate=0.1, batch_size=400, batch_strategy="weighted_sampling"),
+                  LogisticRegression(the_tensor_provider, use_bow=False, use_embedsum=True, training_epochs=100,
+                                     learning_rate=0.001, batch_size=400, batch_strategy="weighted_sampling")]
 
     # Results path
     results_path = Path(ProjectPaths.results, "model_comparison")

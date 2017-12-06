@@ -13,7 +13,7 @@ class LogisticRegression(DetektorModel):
 
     def __init__(self, tensor_provider, use_bow=True, use_embedsum=False,
                  learning_rate=0.001, training_epochs=20,
-                 batch_size=None, verbose=False, batch_strategy="full"):
+                 batch_size=None, batch_strategy="full", verbose=False,):
         """
         :param TensorProvider tensor_provider:
         :param float learning_rate:
@@ -77,7 +77,7 @@ class LogisticRegression(DetektorModel):
 
         # Training cycle
         for epoch in range(self.training_epochs):
-            if self.batch_strategy == "full":
+            if self.batch_strategy == "full" or self.batch_size is None:
                 _, c = self._sess.run([self.optimizer, self.cost], feed_dict={self.x: x,
                                                                           self.y: y})
             else:
@@ -131,6 +131,6 @@ class LogisticRegression(DetektorModel):
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum
         result_str += "Batch Sampling strategy: %s \n" % self.batch_strategy
-        if self.batch_size != None:
+        if self.batch_size is not None:
             result_str += "Batch Size: %i \n" % self.batch_size
         return result_str
