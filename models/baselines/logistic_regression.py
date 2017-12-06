@@ -91,7 +91,7 @@ class LogisticRegression(DetektorModel):
 
                 # Calculate cost on entire training data
                 c = self._sess.run([self.cost], feed_dict={self.x: x, self.y: y})
-
+                c = c[0]
 
             # Display logs per epoch step
             if verbose:
@@ -130,4 +130,7 @@ class LogisticRegression(DetektorModel):
         result_str += "Num training epochs: %i  \n" % self.training_epochs
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum
+        result_str += "Batch Sampling strategy: %s \n" % self.batch_strategy
+        if self.batch_size != None:
+            result_str += "Batch Size: %i \n" % self.batch_size
         return result_str
