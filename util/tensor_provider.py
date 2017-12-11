@@ -410,7 +410,7 @@ if __name__ == "__main__":
                                              char_embedding=True,
                                              bow=True,
                                              embedding_sum=True,
-                                             embedding_mean=True,
+                                             # embedding_mean=True,
                                              labels=True)
     test_tokens = tensor_provider.load_tokens(test_nrs)
 

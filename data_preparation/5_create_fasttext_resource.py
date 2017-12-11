@@ -39,7 +39,7 @@ model = fastText.train_unsupervised(
     #lr=0.1,
     epoch=500,
     minCount=4,
-    model="cbow",
+    model="skipgram",
     thread=18
 )
 
