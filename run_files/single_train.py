@@ -32,7 +32,7 @@ def single_training(tensor_provider, model_class,
                           Samples(), AreaUnderROC(), ROC()]
 
     # Elements keys
-    keys = tensor_provider.keys
+    keys = list(sorted(tensor_provider.accessible_annotated_keys))
 
     # Get program ids and number of programs
     program_ids = np.array(list(zip(*keys))[0])
@@ -43,17 +43,17 @@ def single_training(tensor_provider, model_class,
     evaluation_names = [val.name() for val in eval_functions if val.is_single_value]
     classification_results_train = np.full((1, len(evaluation_names)), np.nan)
     classification_results_train = xr.DataArray(classification_results_train,
-                                          name="Training Results",
-                                          dims=["Model", "Evaluation"],
-                                          coords=dict(Evaluation=evaluation_names,
-                                                      Model=[model_class.name()]))
+                                                name="Training Results",
+                                                dims=["Model", "Evaluation"],
+                                                coords=dict(Evaluation=evaluation_names,
+                                                            Model=[model_class.name()]))
     special_results_test = dict()
     classification_results_test = np.full((1, len(evaluation_names)), np.nan)
     classification_results_test = xr.DataArray(classification_results_test,
-                                          name="Test Results",
-                                          dims=["Model", "Evaluation"],
-                                          coords=dict(Evaluation=evaluation_names,
-                                                      Model=[model_class.name()]))
+                                               name="Test Results",
+                                               dims=["Model", "Evaluation"],
+                                               coords=dict(Evaluation=evaluation_names,
+                                                           Model=[model_class.name()]))
 
     # Select test-programs
     test_programs = np.random.choice(unique_programs, size=n_test_programs, replace=False)
@@ -69,6 +69,10 @@ def single_training(tensor_provider, model_class,
     print("Test programs {}, using {} training samples and {} test samples.".format(test_programs + 1,
                                                                                     len(train_idx),
                                                                                     len(test_idx)))
+
+    # Convert to keys
+    train_idx = [keys[val] for val in train_idx]
+    test_idx = [keys[val] for val in test_idx]
 
     # Make and set BoW-vocabulary
     bow_vocabulary = tensor_provider.extract_programs_vocabulary(train_idx)
@@ -91,7 +95,7 @@ def single_training(tensor_provider, model_class,
 
     # Predict on training-data
     y_pred_train, y_pred_train_binary = model.predict(tensor_provider=tensor_provider,
-                                          predict_idx=train_idx)
+                                                      predict_idx=train_idx)
     y_pred_train = np.squeeze(y_pred_train)
     y_pred_train_binary = np.squeeze(y_pred_train_binary)
 
@@ -111,7 +115,8 @@ def single_training(tensor_provider, model_class,
     for evalf in eval_functions:
         # Training evaluation
         assert y_pred_train.shape == y_true_train.shape, "y_pred ({}) and y_true ({}) " \
-                                             "do not have same shape".format(y_pred_train.shape, y_true_train.shape)
+                                                         "do not have same shape".format(y_pred_train.shape,
+                                                                                         y_true_train.shape)
 
         if evalf.is_single_value:
             evaluation_result = evalf(y_true=y_true_train,
@@ -120,8 +125,8 @@ def single_training(tensor_provider, model_class,
             classification_results_train[0, evaluation_nr] = evaluation_result
         else:
             special_results_train[(model_class.name(), evalf.name())] = evalf(y_true=y_true_train,
-                                                                        y_pred=y_pred_train,
-                                                                        y_pred_binary=y_pred_train_binary)
+                                                                              y_pred=y_pred_train,
+                                                                              y_pred_binary=y_pred_train_binary)
 
         # Test evaluation
         assert y_pred.shape == y_true.shape, "y_pred ({}) and y_true ({}) " \
@@ -135,8 +140,8 @@ def single_training(tensor_provider, model_class,
             evaluation_nr += 1
         else:
             special_results_test[(model_class.name(), evalf.name())] = evalf(y_true=y_true,
-                                                                        y_pred=y_pred,
-                                                                        y_pred_binary=y_pred_binary)
+                                                                             y_pred=y_pred,
+                                                                             y_pred_binary=y_pred_binary)
 
     if return_predictions:
         return classification_results_train, classification_results_test, \
@@ -151,7 +156,7 @@ if __name__ == "__main__":
     the_tensor_provider = TensorProvider(verbose=True)
 
     # Choose model
-    #model = LogisticRegression
+    # model = LogisticRegression
     model = MLP
 
     # Results path
@@ -162,8 +167,8 @@ if __name__ == "__main__":
     results_train, results_test, \
     s_results_train, s_results_test, \
     model_summary = single_training(tensor_provider=the_tensor_provider,
-                                         model_class=model,
-                                         path=results_path)  # type: xr.DataArray
+                                    model_class=model,
+                                    path=results_path)  # type: xr.DataArray
 
     # Print mean results
     results_train = results_train._to_dataset_split("Model").to_dataframe()

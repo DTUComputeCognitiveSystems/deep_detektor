@@ -39,7 +39,7 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
                           Samples(), AreaUnderROC(), ROC()]
 
     # Elements keys
-    keys = tensor_provider.keys
+    keys = list(sorted(tensor_provider.accessible_annotated_keys))
 
     # Get program ids and number of programs
     program_ids = np.array(list(zip(*keys))[0])
@@ -71,6 +71,10 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
         # Get split indices
         train_idx = np.where(program_ids != unique_programs[test])[0]
         test_idx = np.where(program_ids == unique_programs[test])[0]
+
+        # Convert to keys
+        train_idx = [keys[val] for val in train_idx]
+        test_idx = [keys[val] for val in test_idx]
 
         # Report
         print("Program {}, using {} training samples and {} test samples.".format(program_nr + 1,

@@ -13,8 +13,8 @@ from util.utilities import ensure_folder, save_fig
 
 
 def model_comparison(tensor_provider, model_list,
-                    test_idx, train_idx, eval_functions=None, return_predictions=False,
-                    path=None):
+                     test_idx, train_idx, eval_functions=None, return_predictions=False,
+                     path=None):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param list[DetektorModel] model_list: List of initialized Detektor Models
@@ -36,18 +36,17 @@ def model_comparison(tensor_provider, model_list,
     model_names = [mod.name() for mod in model_list]
     classification_results_train = np.full((len(model_list), len(evaluation_names)), np.nan)
     classification_results_train = xr.DataArray(classification_results_train,
-                                          name="Training Results",
-                                          dims=["Model", "Evaluation"],
-                                          coords=dict(Evaluation=evaluation_names,
-                                                      Model=model_names))
+                                                name="Training Results",
+                                                dims=["Model", "Evaluation"],
+                                                coords=dict(Evaluation=evaluation_names,
+                                                            Model=model_names))
     special_results_test = dict()
     classification_results_test = np.full((len(model_list), len(evaluation_names)), np.nan)
     classification_results_test = xr.DataArray(classification_results_test,
-                                          name="Test Results",
-                                          dims=["Model", "Evaluation"],
-                                          coords=dict(Evaluation=evaluation_names,
-                                                      Model=model_names))
-
+                                               name="Test Results",
+                                               dims=["Model", "Evaluation"],
+                                               coords=dict(Evaluation=evaluation_names,
+                                                           Model=model_names))
 
     # Get truth of train-set
     y_true_train = tensor_provider.load_labels(data_keys_or_idx=train_idx)
@@ -55,7 +54,7 @@ def model_comparison(tensor_provider, model_list,
     # Get truth of test-set
     y_true = tensor_provider.load_labels(data_keys_or_idx=test_idx)
 
-    #Loop over models...
+    # Loop over models...
     for m, model in enumerate(model_list):
         # Fit model
         model.fit(tensor_provider=tensor_provider,
@@ -65,7 +64,7 @@ def model_comparison(tensor_provider, model_list,
 
         # Predict on training-data
         y_pred_train, y_pred_train_binary = model.predict(tensor_provider=tensor_provider,
-                                              predict_idx=train_idx)
+                                                          predict_idx=train_idx)
         y_pred_train = np.squeeze(y_pred_train)
         y_pred_train_binary = np.squeeze(y_pred_train_binary)
 
@@ -85,7 +84,8 @@ def model_comparison(tensor_provider, model_list,
         for evalf in eval_functions:
             # Training evaluation
             assert y_pred_train.shape == y_true_train.shape, "y_pred ({}) and y_true ({}) " \
-                                                 "do not have same shape".format(y_pred_train.shape, y_true_train.shape)
+                                                             "do not have same shape".format(y_pred_train.shape,
+                                                                                             y_true_train.shape)
 
             if evalf.is_single_value:
                 evaluation_result = evalf(y_true=y_true_train,
@@ -94,8 +94,8 @@ def model_comparison(tensor_provider, model_list,
                 classification_results_train[m, evaluation_nr] = evaluation_result
             else:
                 special_results_train[(m, evalf.name())] = evalf(y_true=y_true_train,
-                                                                            y_pred=y_pred_train,
-                                                                            y_pred_binary=y_pred_train_binary)
+                                                                 y_pred=y_pred_train,
+                                                                 y_pred_binary=y_pred_train_binary)
 
             # Test evaluation
             assert y_pred.shape == y_true.shape, "y_pred ({}) and y_true ({}) " \
@@ -109,8 +109,8 @@ def model_comparison(tensor_provider, model_list,
                 evaluation_nr += 1
             else:
                 special_results_test[(m, evalf.name())] = evalf(y_true=y_true,
-                                                                            y_pred=y_pred,
-                                                                            y_pred_binary=y_pred_binary)
+                                                                y_pred=y_pred,
+                                                                y_pred_binary=y_pred_binary)
 
     with Path(path, "results.txt").open("w") as file:
         for m in range(len(model_list)):
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     the_tensor_provider = TensorProvider(verbose=True)
 
     # Elements keys
-    keys = the_tensor_provider.keys
+    keys = list(sorted(the_tensor_provider.accessible_annotated_keys))
 
     # Get program ids and number of programs
     program_ids = np.array(list(zip(*keys))[0])
@@ -154,6 +154,10 @@ if __name__ == "__main__":
         test_idx = test_idx + (program_ids == test_program)
     train_idx = np.where(test_idx < 0.5)[0]
     test_idx = np.where(test_idx > 0.5)[0]
+
+    # Convert to keys
+    train_idx = [keys[val] for val in train_idx]
+    test_idx = [keys[val] for val in test_idx]
 
     # Report
     print("Test programs {}, using {} training samples and {} test samples.".format(test_programs + 1,
@@ -176,10 +180,10 @@ if __name__ == "__main__":
     # Run training on a single model
     results_train, results_test, \
     s_results_train, s_results_test = model_comparison(tensor_provider=the_tensor_provider,
-                                         model_list=model_list,
-                                         test_idx=test_idx,
-                                         train_idx=train_idx,
-                                         path=results_path)
+                                                       model_list=model_list,
+                                                       test_idx=test_idx,
+                                                       train_idx=train_idx,
+                                                       path=results_path)
 
     # TODO: Add ROC plot for each method tested
     # # Plot ROC if included

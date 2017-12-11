@@ -48,22 +48,50 @@ class TensorProvider:
             self.recurrent_speller.load_encoder(sess=self._sess, file_path=ProjectPaths.speller_encoder_checkpoint_file)
 
         ###################
+        # Keys of all data
+
+        if verbose:
+            print("Loading keys.")
+        self.labels = dict()
+        self.keys = []
+        program_ids = set()
+        database_path = Path(ProjectPaths.tensor_provider, "all_programs.db")
+        connection = sqlite3.connect(str(database_path))
+        cursor = connection.cursor()
+        rows = cursor.execute("SELECT program_id, sentence_id FROM programs").fetchall()
+        for row in rows:
+            key = (row[0], row[1])
+            program_ids.add(row[0])
+            self.keys.append(key)
+            self.labels[key] = None
+        cursor.close()
+        connection.close()
+
+        ###################
         # Labels of original data
 
         if verbose:
             print("Loading labels.")
-        self.labels = dict()
-        self.keys = []
+        annotated_program_ids = set()
+        annotated_keys = set()
         database_path = Path(ProjectPaths.tensor_provider, "annotated_programs.db")
         connection = sqlite3.connect(str(database_path))
         cursor = connection.cursor()
         rows = cursor.execute("SELECT program_id, sentence_id, claim_flag FROM programs").fetchall()
         for row in rows:
             key = (row[0], row[1])
-            self.keys.append(key)
+            annotated_program_ids.add(row[0])
+            annotated_keys.add(key)
             self.labels[key] = bool(row[2])
         cursor.close()
         connection.close()
+
+        ###################
+        # Get annotated and non-annotated data
+
+        self._program_ids = program_ids
+        self._annotated_program_ids = annotated_program_ids
+        self._annotated_keys = annotated_keys
 
         ###################
         # Word embeddings
@@ -119,6 +147,30 @@ class TensorProvider:
 
     def set_bow_vocabulary(self, vocabulary=None):
         self.bow_vocabulary = self._complete_bow_vocabulary if vocabulary is None else vocabulary
+
+    @property
+    def off_limits_programs(self):
+        return (8720741, 9284846, 8665813)
+
+    @property
+    def program_ids(self):
+        return self._program_ids
+
+    @property
+    def annotated_program_ids(self):
+        return self._annotated_program_ids
+
+    @property
+    def accessible_annotated_program_ids(self):
+        return [val for val in self.annotated_program_ids if val not in self.off_limits_programs]
+
+    @property
+    def annotated_keys(self):
+        return self._annotated_keys
+
+    @property
+    def accessible_annotated_keys(self):
+        return [val for val in self.annotated_keys if val[0] not in self.off_limits_programs]
 
     def _get_word_embeddings(self, tokens, n_words=None):
 
@@ -456,4 +508,11 @@ if __name__ == "__main__":
             print(key)
             print(test[key])
 
+    n = len(tensor_provider.keys)
+    assert all([len(val) == n for val in [
+        tensor_provider.keys,
+        tensor_provider.labels,
+        tensor_provider.tokens,
+        tensor_provider.pos_tags
+    ]]), "Not all resources in TensorProvider has same length."
 
