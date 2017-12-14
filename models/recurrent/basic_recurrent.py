@@ -232,7 +232,12 @@ class BasicRecurrent(DetektorModel):
                 # Print validation
                 if (batch_nr + 1) % self.display_step == 0 and verbose:
                     print(verbose * " ", end="")
-                    print("Batch {: 8d} / {: 8d}. cost = {:10.2f}. learning_rate = {:.2e}"
+                    if self.progressive_learning_rate:
+                        print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}. learning_rate = {:.2e}"
+                    else:
+                        print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}."
+
+                    print(print_formatter
                           .format(batch_nr + 1,
                                   self.n_batches,
                                   c,
