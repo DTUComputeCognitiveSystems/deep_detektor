@@ -10,7 +10,7 @@ from project_paths import ProjectPaths
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
     AreaUnderROC
 from evaluations.area_roc import plot_roc, ROC, plot_multiple_rocs, mean_rocs
-from models.baselines import MLP, LogisticRegression
+from models.baselines import MLP, LogisticRegression, LogisticRegressionSK
 from models.recurrent.basic_recurrent import BasicRecurrent
 from util.tensor_provider import TensorProvider
 from util.utilities import ensure_folder, save_fig
@@ -178,8 +178,8 @@ if __name__ == "__main__":
 
     # Choose models
     models = [
-        LogisticRegression(tensor_provider=the_tensor_provider),
-        MLP(tensor_provider=the_tensor_provider)
+        LogisticRegressionSK(tensor_provider=the_tensor_provider)
+        #MLP(tensor_provider=the_tensor_provider)
     ]
 
     # Run LOO-program
