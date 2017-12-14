@@ -356,6 +356,39 @@ class TensorProvider:
         data_keys = self._convert_to_keys(data_keys_or_idx)
         return [self.tokens[val] for val in data_keys]
 
+    def load_original_sentences(self, data_keys):
+
+        # Connect to database
+        database_path = Path(ProjectPaths.tensor_provider, "all_programs.db")
+        connection = sqlite3.connect(str(database_path))
+        cursor = connection.cursor()
+
+        # Create temporary table
+        cursor.execute("CREATE TEMPORARY TABLE temporary (program_id INTEGER NOT NULL, sentence_id INTEGER NOT NULL)")
+
+        # Insert queries
+        cursor.executemany("INSERT INTO temporary (program_id, sentence_id) VALUES (?, ?)", data_keys)
+
+        # Select filtered data
+        cursor.execute(
+            """
+            SELECT sentence FROM programs
+            WHERE EXISTS(
+              SELECT * FROM temporary
+              WHERE temporary.program_id = programs.program_id and temporary.sentence_id = programs.sentence_id
+            )
+            """
+        )
+
+        # Get sentences
+        sentences = [val[0] for val in cursor.fetchall()]
+
+        # Close database
+        cursor.close()
+        connection.close()
+
+        return sentences
+
     def load_data_tensors(self, data_keys_or_idx, word_counts=False, char_counts=False,
                           word_embedding=False, word_embedding_success=False,
                           pos_tags=False, char_embedding=False,
@@ -450,10 +483,15 @@ if __name__ == "__main__":
     sparse = {"bow"}
     plt.close("all")
 
+    # Initialize
     the_tensor_provider = TensorProvider(verbose=True)
+
+    # Get accessible keys
+    all_keys = list(sorted(the_tensor_provider.accessible_annotated_keys))
+
     print("\nTesting tensor provider.")
-    the_test_nrs = random.sample(range(len(the_tensor_provider.keys)), 20)
-    test = the_tensor_provider.load_data_tensors(the_test_nrs,
+    the_test_keys = random.sample(all_keys, 20)
+    test = the_tensor_provider.load_data_tensors(the_test_keys,
                                                  word_counts=True,
                                                  char_counts=True,
                                                  word_embedding=True,
@@ -464,7 +502,12 @@ if __name__ == "__main__":
                                                  embedding_sum=True,
                                                  # embedding_mean=True,
                                                  labels=True)
-    test_tokens = the_tensor_provider.load_tokens(the_test_nrs)
+    test_tokens = the_tensor_provider.load_tokens(the_test_keys)
+
+    print("Original sentences:")
+    ori_sentences = the_tensor_provider.load_original_sentences(sorted(the_test_keys))
+    for a_key, a_sentence in zip(sorted(the_test_keys), ori_sentences):
+        print("\t", a_key, a_sentence)
 
     print("Shapes:")
     for a_key, a_val in test.items():
