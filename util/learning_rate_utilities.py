@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def linear_geometric_curve(n, starting_value, end_value, geometric_component=0.5, linear_end=1.0, geometric_end=1.0):
+def linear_geometric_curve(n, starting_value, end_value, geometric_component=0.5, constant_at=1.0, geometric_end=1.0):
     """
     Used for creating a linear combination of a linear curve and a geometric curve.
     I think it's nice for learning rates.
@@ -10,14 +10,14 @@ def linear_geometric_curve(n, starting_value, end_value, geometric_component=0.5
     :param float starting_value: Initial value of curve.
     :param float end_value: Final values of curve.
     :param float geometric_component: Relative importance of geometric component vs linear component (between 0 and 1).
-    :param float linear_end: Relative end of linear component.
+    :param float constant_at: Relative end of linear component.
     :param float geometric_end: Relative end of geometric component.
     :return: np.ndarray
     """
     assert 0 <= geometric_component <= 1
 
     # Length of linear component and geometric component
-    linear_length = int(n * linear_end)
+    linear_length = int(n * constant_at)
     geometric_length = int(n * geometric_end)
 
     # Linear component
@@ -38,7 +38,7 @@ def linear_geometric_curve(n, starting_value, end_value, geometric_component=0.5
     curve[:linear_length] += linear_values
 
     # Add constant components in case curves end before end of sequence
-    if linear_end != n:
+    if constant_at != n:
         curve[linear_length:] += end_value * (1 - geometric_component)
     if geometric_end != n:
         curve[geometric_length:] += end_value * geometric_component
@@ -54,7 +54,10 @@ def primary_secondary_plot(primary_xs, primary_values, secondary_plots, x_limit,
 
     # Get axes
     ax1 = plt.gca()  # type: plt.Axes
-    ax2 = plt.twinx(ax1)  # type: plt.Axes
+    ax2 = None
+    if secondary_plots:
+        ax2 = plt.twinx(ax1)  # type: plt.Axes
+        plt.ticklabel_format(style='sci', axis='y')
 
     ###
     # Primary

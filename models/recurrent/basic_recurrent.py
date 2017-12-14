@@ -5,20 +5,21 @@ import matplotlib.pyplot as plt
 
 from util.tensor_provider import TensorProvider
 from util.learning_rate_utilities import linear_geometric_curve, primary_secondary_plot
-from util.utilities import save_fig
+from util.utilities import save_fig, empty_folder
 from pathlib import Path
 
 
 class BasicRecurrent(DetektorModel):
-    def __init__(self, tensor_provider, units=None,
+    def __init__(self, tensor_provider, recurrent_units=100, linear_units=(50,),
                  word_embedding=True, pos_tags=True, char_embedding=True,
                  n_batches=1000, batch_size=200,
                  display_step=10, results_path=None,
-                 optimizer=tf.train.GradientDescentOptimizer):
+                 optimizer=tf.train.RMSPropOptimizer):
         """
 
         :param TensorProvider tensor_provider: Provides data for model.
-        :param list | tuple units: Number of units in [recurrent_layer, fully_connected_layer].
+        :param list | tuple linear_units: Number of units in fully-connected layers.
+        :param int recurrent_units: number of units in recurrent layer.
         :param bool word_embedding: Use word-embeddings as inputs for network.
         :param bool pos_tags: Use pos-tags as inputs for network.
         :param bool char_embedding: Use character-embeddings as inputs for network.
@@ -38,10 +39,11 @@ class BasicRecurrent(DetektorModel):
         self.use_char_embedding = char_embedding
         self.use_pos_tags = pos_tags
         self.use_word_embedding = word_embedding
+        self.linear_units = linear_units
+        self.recurrent_units = recurrent_units
 
         # Use model's graph
         with self._tf_graph.as_default():
-            self.hidden_units = units if units is not None else [100, 50]
 
             # Get number of features
             self.num_features = tensor_provider.input_dimensions(word_embedding=self.use_word_embedding,
@@ -55,45 +57,64 @@ class BasicRecurrent(DetektorModel):
 
             # Recurrent layer
             with tf.name_scope("recurrent_layer"):
-                self._rec_cell = tf.nn.rnn_cell.GRUCell(num_units=self.hidden_units[0])
+                self._rec_cell = tf.nn.rnn_cell.GRUCell(num_units=self.recurrent_units)
                 self.rec_cell_outputs, self.rec_cell_state = tf.nn.dynamic_rnn(cell=self._rec_cell,
                                                                                inputs=self.inputs,
                                                                                sequence_length=self.input_lengths,
                                                                                dtype=tf.float32)
 
-            # Fully connected layer1
-            with tf.name_scope("ff_layer1"):
-                self._ff1_m = tf.Variable(tf.truncated_normal([self.hidden_units[0], self.hidden_units[1]],
-                                                              stddev=np.sqrt(self.hidden_units[1])),
-                                          name="ff1_m")
-                self._ff1_b = tf.Variable(tf.truncated_normal([self.hidden_units[1]],
-                                                              stddev=np.sqrt(self.hidden_units[1])),
-                                          name="ff1_b")
-                self._ff1_prod = tf.matmul(self.rec_cell_state, self._ff1_m)
-                self._ff1_a = self._ff1_prod + self._ff1_b
-                self.ff1_act = tf.nn.relu(self._ff1_a, name="ff1_activation")
+            # Fully connected layers
+            self.feedforward_activations = []
+            last_units = self.recurrent_units
+            c_input = self.rec_cell_state
+            for layer_nr, n_units in enumerate(self.linear_units):
+                layer_nr += 1
+                with tf.name_scope("ff_layer{}".format(layer_nr)):
+                    feedforward_weights = tf.Variable(tf.truncated_normal([last_units, n_units],
+                                                                          stddev=np.sqrt(n_units)),
+                                                      name="ff{}_m".format(layer_nr))
+                    feedforward_bias = tf.Variable(tf.truncated_normal([n_units], stddev=np.sqrt(n_units)),
+                                                   name="ff{}_b".format(layer_nr))
+                    feedforward_product = tf.matmul(c_input, feedforward_weights)
+                    feedforward_sum = feedforward_product + feedforward_bias
+                    self.feedforward_activations.append(
+                        tf.nn.relu(feedforward_sum, name="ff{}_activation".format(layer_nr))
+                    )
+
+                # Next layer
+                c_input = self.feedforward_activations[-1]
+                last_units = n_units
 
             # Output layer
             with tf.name_scope("output_layer"):
-                self._ffout_m = tf.Variable(tf.truncated_normal([self.hidden_units[1], 1],
-                                                                stddev=np.sqrt(self.hidden_units[0])),
+                self._ffout_m = tf.Variable(tf.truncated_normal([self.linear_units[-1], 1],
+                                                                stddev=np.sqrt(self.linear_units[-1])),
                                             name="ffout_m")
                 self._ffout_b = tf.Variable(tf.truncated_normal([1], stddev=1),
                                             name="ffout_b")
-                self._ffout_prod = tf.matmul(self.ff1_act, self._ffout_m)
+                self._ffout_prod = tf.matmul(self.feedforward_activations[-1], self._ffout_m)
                 self._ffout_a = tf.transpose(self._ffout_prod + self._ffout_b)
                 self.prediction = tf.nn.softmax(self._ffout_a, name="output")
 
             # Cost-function
-            self.cost = tf.nn.softmax_cross_entropy_with_logits(labels=self.truth,
-                                                                logits=self._ffout_a)
+            with tf.name_scope("Training"):
+                with tf.name_scope("Cost"):
+                    self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.truth,
+                                                                                       logits=self._ffout_a))
+                    tf.summary.scalar('cost', self.cost)
 
-            # Gradient Descent
-            self.learning_rate = tf.placeholder(shape=(), dtype=tf.float32, name="learning_rate")
-            self.optimizer = optimizer(self.learning_rate).minimize(self.cost)
+                # Gradient Descent
+                with tf.name_scope("Optimizer"):
+                    self.learning_rate = tf.placeholder(shape=(), dtype=tf.float32, name="learning_rate")
+                    self.optimizer = optimizer(self.learning_rate).minimize(self.cost)
 
-            # Run the initializer
-            self._sess.run(tf.global_variables_initializer())
+                # Merge summaries
+                self._summary_merged = self._summary_train_writer = None
+                if self.results_path is not None:
+                    self._summary_merged = tf.summary.merge_all()
+                    tensorboard_path = Path(self.results_path, "tensorboard_train")
+                    empty_folder(tensorboard_path)
+                    self._summary_train_writer = tf.summary.FileWriter(str(tensorboard_path), self._sess.graph)
 
     def fit(self, tensor_provider, train_idx, verbose=0):
         """
@@ -102,6 +123,9 @@ class BasicRecurrent(DetektorModel):
         :param int verbose:
         :return:
         """
+        # Run the initializer
+        self._sess.run(tf.global_variables_initializer())
+
         # Close all figures and make a new one
         fig = None
         if self.results_path is not None:
@@ -159,9 +183,15 @@ class BasicRecurrent(DetektorModel):
 
             # Fetching
             fetch = [self.optimizer, self.cost]
+            if self.results_path is not None:
+                fetch.append(self._summary_merged)
 
             # Run batch training
-            _, c = self._sess.run(fetches=fetch, feed_dict=feed_dict)
+            _, c, *summary = self._sess.run(fetches=fetch, feed_dict=feed_dict)
+
+            # Tensorboard summaries
+            if self.results_path is not None:
+                self._summary_train_writer.add_summary(summary, batch_nr)
 
             # Note performance
             costs.append(c[0])
