@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -6,7 +7,7 @@ import xarray as xr
 from models.model_base import DetektorModel
 from project_paths import ProjectPaths
 from evaluations.area_roc import ROC, plot_roc
-from models.baselines import LogisticRegression, MLP
+from models.baselines import LogisticRegression, MLP, LogisticRegressionSK
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
     AreaUnderROC
 from models.recurrent.basic_recurrent import BasicRecurrent
