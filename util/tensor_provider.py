@@ -443,7 +443,7 @@ class TensorProvider:
 
         return data_tensors
 
-    def get_claim_predictions(self, predictions, sentence_indices, n_best=10):
+    def get_ranked_predictions(self, predictions, sentence_indices, n_best=10):
         """
 
         :return: list[str] containing the n_best claims with
@@ -463,7 +463,6 @@ class TensorProvider:
 
         # Return best sentences
         return self.load_original_sentences(best_sentences), best_sentences_score, best_sentences
-
 
 
 def reshape_square(a_matrix, pad_value=0, return_pad_mask=False):

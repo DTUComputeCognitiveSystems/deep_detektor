@@ -18,7 +18,7 @@ from util.utilities import ensure_folder, save_fig
 
 def leave_one_program_out_cv(tensor_provider, model_list, path,
                              eval_functions=None, limit=None, return_predictions=False,
-                             save_ranked_sentences=True):
+                             save_ranked_sentences=True, save_full_predictions=True):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param list[DetektorModel] model_list: List of model-classes for testing.
@@ -121,13 +121,19 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
                 rank_file.write("Test program: %s \n" %program_names[program_nr])
                 rank_file.write(model.summary_to_string())
                 ranked_sentences, rank_score, rank_indices \
-                    = tensor_provider.get_claim_predictions(y_pred, test_idx)
+                    = tensor_provider.get_ranked_predictions(y_pred, test_idx)
                 rank_file.write("Sentence, Proability of claim, Truth \n")
                 ranked_labels = tensor_provider.load_labels(rank_indices)
                 for r in range(len(ranked_sentences)):
                     rank_file.write("%s , %.5f, %i \n"%(ranked_sentences[r], rank_score[r], ranked_labels[r]) )
                 rank_file.write("\n")
 
+            # Save predictions on full test set
+            if save_full_predictions:
+                with Path(path, "%s_predictions.txt"%program_names[program_nr]).open("w") as file:
+                    all_sentences = tensor_provider.load_original_sentences(test_idx)
+                    for r in range(len(all_sentences)):
+                        file.write("%.5f;%s\n"%(y_pred[r], all_sentences[r]))
 
             # Evaluate with eval_functions
             evaluation_nr = 0
