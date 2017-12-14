@@ -17,7 +17,8 @@ from util.utilities import ensure_folder, save_fig
 
 
 def leave_one_program_out_cv(tensor_provider, model_list, path,
-                             eval_functions=None, limit=None, return_predictions=False):
+                             eval_functions=None, limit=None, return_predictions=False,
+                             save_ranked_sentences=True):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param list[DetektorModel] model_list: List of model-classes for testing.
@@ -61,6 +62,10 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
                                           coords=dict(Program=program_names,
                                                       Model=[model_class.name() for model_class in model_list],
                                                       Evaluation=evaluation_names))
+
+    # Initialize file for storing ranked sentences
+    if save_ranked_sentences:
+        rank_file = Path(path, "ranked_sentences.txt").open("w")
 
     # Loop over programs
     loo = LeaveOneOut()
@@ -110,6 +115,12 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
             # Store predictions
             if return_predictions:
                 test_predictions.setdefault(model_name, dict())[program_name] = y_pred
+
+            # Save the best ranked senteces (in terms of claim)
+            if save_ranked_sentences:
+                rank_file.write(model.summary_to_string())
+                rank_file.write(tensor_provider.get_claim_predictions(y_pred, test_idx) )
+
 
             # Evaluate with eval_functions
             evaluation_nr = 0
@@ -163,6 +174,9 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
     plt.legend()
     save_fig(Path(path, "Models_ROC"))
     plt.close()
+
+    if save_ranked_sentences:
+        rank_file.close()
 
     if return_predictions:
         return classification_results, special_results, test_predictions
