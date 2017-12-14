@@ -12,7 +12,7 @@ class MLP(DetektorModel):
         return "MLP"
 
     def __init__(self, tensor_provider, hidden_units=2, learning_rate=0.001, display_step=1,
-                 training_epochs=20, verbose=False, use_bow=True, use_embedsum=False,
+                 training_epochs=20, verbose=False, use_bow=True, use_embedsum=False, results_path=None,
                  class_weights=np.array([1.0, 1.0]), batch_size=None, batch_strategy="full"):
         """
         :param TensorProvider tensor_provider:
@@ -21,7 +21,7 @@ class MLP(DetektorModel):
         :param int training_epochs:
         :param bool verbose:
         """
-        super().__init__(None)
+        super().__init__(results_path, tf_save=True)
 
         # Settings
         self.display_step = display_step

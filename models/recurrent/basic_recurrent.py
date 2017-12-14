@@ -16,7 +16,6 @@ class BasicRecurrent(DetektorModel):
                  display_step=10, results_path=None,
                  optimizer_class=tf.train.RMSPropOptimizer):
         """
-
         :param TensorProvider tensor_provider: Provides data for model.
         :param list | tuple linear_units: Number of units in fully-connected layers.
         :param int recurrent_units: number of units in recurrent layer.
@@ -27,7 +26,7 @@ class BasicRecurrent(DetektorModel):
         :param int batch_size:
         :param int display_step:
         """
-        super().__init__(results_path)
+        super().__init__(results_path, tf_save=True)
 
         # For training
         self.n_batches = n_batches

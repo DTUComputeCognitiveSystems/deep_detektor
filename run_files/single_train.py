@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -11,7 +12,7 @@ from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositiv
     AreaUnderROC
 from models.recurrent.basic_recurrent import BasicRecurrent
 from util.tensor_provider import TensorProvider
-from util.utilities import ensure_folder, save_fig
+from util.utilities import ensure_folder, save_fig, empty_folder
 
 
 def single_training(tensor_provider, model_class,
@@ -130,6 +131,7 @@ def single_training(tensor_provider, model_class,
         assert y_pred.shape == y_true.shape, "y_pred ({}) and y_true ({}) " \
                                              "do not have same shape".format(y_pred.shape, y_true.shape)
 
+        # Concatenate evaluation results
         if evalf.is_single_value:
             evaluation_result = evalf(y_true=y_true,
                                       y_pred=y_pred,
@@ -141,12 +143,18 @@ def single_training(tensor_provider, model_class,
                                                                              y_pred=y_pred,
                                                                              y_pred_binary=y_pred_binary)
 
+    # Save model
+    model.save_model()
+
+    # Return list
+    returns = [classification_results_train, classification_results_test,
+               special_results_train, special_results_test, model.summary_to_string()]
+
+    # Additional returns
     if return_predictions:
-        return classification_results_train, classification_results_test, \
-               special_results_train, special_results_test, model.summary_to_string(), \
-               train_predictions, test_predictions
-    return classification_results_train, classification_results_test, \
-           special_results_train, special_results_test, model.summary_to_string()
+        returns.extend([train_predictions, test_predictions])
+
+    return tuple(returns)
 
 
 if __name__ == "__main__":
@@ -159,14 +167,20 @@ if __name__ == "__main__":
     # Choose model
     # model = BasicRecurrent(
     #     tensor_provider=the_tensor_provider,
-    #     results_path=results_path
+    #     results_path=results_path,
     # )
     # model = LogisticRegression(
     #     tensor_provider=the_tensor_provider,
+    #     results_path=results_path,
     # )
     model = MLP(
         tensor_provider=the_tensor_provider,
+        results_path=results_path,
     )
+
+    # Clear out results folder content
+    if model.results_path is not None:
+        shutil.rmtree(str(model.results_path))
 
     # Run training on a single model
     results_train, results_test, \
@@ -175,17 +189,17 @@ if __name__ == "__main__":
                                     model_class=model)  # type: xr.DataArray
 
     # Print mean results
-    results_train = results_train._to_dataset_split("Model").to_dataframe()
-    results_test = results_test._to_dataset_split("Model").to_dataframe()
+    results_train_print = results_train._to_dataset_split("Model").to_dataframe()
+    results_test_print = results_test._to_dataset_split("Model").to_dataframe()
     with Path(results_path, "results.txt").open("w") as file:
         file.write(model_summary)
-        file.write(str(results_train))
-        file.write(str(results_test))
+        file.write(str(results_train_print))
+        file.write(str(results_test_print))
 
     print("\nSingle training Results - TRAINING \n" + "-" * 75)
-    print(results_train)
+    print(results_train_print)
     print("\nSingle training Results - TEST \n" + "-" * 75)
-    print(results_test)
+    print(results_test_print)
     print("\nModel Summary \n" + "-" * 75)
     print(model_summary)
 
