@@ -376,38 +376,24 @@ class TensorProvider:
         data_keys = self._convert_to_keys(data_keys_or_idx)
         return [self.tokens[val] for val in data_keys]
 
-    def load_original_sentences(self, data_keys):
+    @staticmethod
+    def load_original_sentences(data_keys):
+        # Get relevant sentence numbers
+        relevant_sentences = [key[1] for key in data_keys]
 
         # Connect to database
         database_path = Path(ProjectPaths.tensor_provider, "all_programs.db")
         connection = sqlite3.connect(str(database_path))
         cursor = connection.cursor()
 
-        # Create temporary table
-        cursor.execute("CREATE TEMPORARY TABLE temporary (program_id INTEGER NOT NULL, sentence_id INTEGER NOT NULL)")
+        # Get all sentences with those numbers
+        cursor.execute("SELECT program_id, sentence_id, sentence FROM programs WHERE sentence_id IN {}"
+                       .format(tuple(relevant_sentences)))
 
-        # Insert queries
-        cursor.executemany("INSERT INTO temporary (program_id, sentence_id) VALUES (?, ?)", data_keys)
+        # Make a dictionary with results
+        results_dict = {(val[0], val[1]): val[2] for val in cursor.fetchall()}
 
-        # Select filtered data
-        cursor.execute(
-            """
-            SELECT sentence FROM programs
-            WHERE EXISTS(
-              SELECT * FROM temporary
-              WHERE temporary.program_id = programs.program_id and temporary.sentence_id = programs.sentence_id
-            )
-            """
-        )
-
-        # Get sentences
-        sentences = [val[0] for val in cursor.fetchall()]
-
-        # Close database
-        cursor.close()
-        connection.close()
-
-        return sentences
+        return [results_dict[key] for key in data_keys]
 
     def load_data_tensors(self, data_keys_or_idx, word_counts=False, char_counts=False,
                           word_embedding=False, word_embedding_success=False,
