@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
+from models.model_base import DetektorModel
 from project_paths import ProjectPaths
 from evaluations.area_roc import ROC, plot_roc
 from models.baselines import LogisticRegression, MLP
@@ -14,16 +15,14 @@ from util.utilities import ensure_folder, save_fig
 
 
 def single_training(tensor_provider, model_class,
-                    n_test_programs=1, eval_functions=None, return_predictions=False,
-                    path=None):
+                    n_test_programs=1, eval_functions=None, return_predictions=False):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
-    :param ClassVar model_class: Model-class to train and test.
+    :param DetektorModel model_class: Model-class to train and test.
     :param int n_test_programs: Number of test-programs to use.
     :param list[Evaluation] eval_functions: List of evaluation functions used to test models.
     :param bool return_predictions: If True, the method stores all model test-predictions and returns them as well.
                                     Can be used to determine whether errors are the same across models.
-    :param Path path: Path for storing results.
     :return:
     """
     # Default evaluation score
@@ -84,14 +83,10 @@ def single_training(tensor_provider, model_class,
     # Get truth of test-set
     y_true = tensor_provider.load_labels(data_keys_or_idx=test_idx)
 
-    # Initialize model
-    model = model_class(tensor_provider=tensor_provider)
-
     # Fit model
     model.fit(tensor_provider=tensor_provider,
               train_idx=train_idx,
-              verbose=2,
-              results_path=path)
+              verbose=2)
 
     # Predict on training-data
     y_pred_train, y_pred_train_binary = model.predict(tensor_provider=tensor_provider,
@@ -155,21 +150,20 @@ if __name__ == "__main__":
     # Initialize tensor-provider (data-source)
     the_tensor_provider = TensorProvider(verbose=True)
 
-    # Choose model
-    # model = LogisticRegression
-    model = BasicRecurrent
-    # model = MLP
-
     # Results path
-    results_path = Path(ProjectPaths.results, "single_train", model.name())
-    ensure_folder(results_path)
+    results_path = Path(ProjectPaths.results, "single_train")
+
+    # Choose model
+    model = BasicRecurrent(
+        tensor_provider=the_tensor_provider,
+        results_path=results_path
+    )
 
     # Run training on a single model
     results_train, results_test, \
     s_results_train, s_results_test, \
     model_summary = single_training(tensor_provider=the_tensor_provider,
-                                    model_class=model,
-                                    path=results_path)  # type: xr.DataArray
+                                    model_class=model)  # type: xr.DataArray
 
     # Print mean results
     results_train = results_train._to_dataset_split("Model").to_dataframe()

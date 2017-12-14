@@ -20,7 +20,7 @@ class LogisticRegression(DetektorModel):
         :param int training_epochs:
         :param bool verbose:
         """
-        super().__init__()
+        super().__init__(None)
 
         # Get number of features
         self.num_features = tensor_provider.input_dimensions(bow=use_bow, embedding_sum=use_embedsum)

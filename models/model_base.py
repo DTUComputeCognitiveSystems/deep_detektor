@@ -1,14 +1,25 @@
+from pathlib import Path
+
 from util.tensor_provider import TensorProvider
 import tensorflow as tf
+from util.utilities import ensure_folder
+
 
 # TODO: Make methods that creates the feed_dictionary for a model, given a tensor_provider and indices
 
 
 class DetektorModel:
-    def __init__(self):
+    def __init__(self, results_path):
         # Make graph and session
         self._tf_graph = tf.Graph()
         self._sess = tf.Session(graph=self._tf_graph)
+
+        # Set path
+        if results_path is not None:
+            self.results_path = Path(results_path, self.name())
+            ensure_folder(self.results_path)
+        else:
+            self.results_path = None
 
     @classmethod
     def name(cls):

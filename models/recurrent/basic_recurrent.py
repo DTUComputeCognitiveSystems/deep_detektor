@@ -27,13 +27,12 @@ class BasicRecurrent(DetektorModel):
         :param int batch_size:
         :param int display_step:
         """
-        super().__init__()
+        super().__init__(results_path)
 
         # For training
         self.n_batches = n_batches
         self.batch_size = batch_size
         self.display_step = display_step
-        self.results_path = results_path
 
         # Settings
         self.use_char_embedding = char_embedding
@@ -123,8 +122,10 @@ class BasicRecurrent(DetektorModel):
         :param int verbose:
         :return:
         """
-        # Run the initializer
-        self._sess.run(tf.global_variables_initializer())
+
+        # Use model's graph and run initializer
+        with self._tf_graph.as_default():
+            self._sess.run(tf.global_variables_initializer())
 
         # Close all figures and make a new one
         fig = None
@@ -191,10 +192,10 @@ class BasicRecurrent(DetektorModel):
 
             # Tensorboard summaries
             if self.results_path is not None:
-                self._summary_train_writer.add_summary(summary, batch_nr)
+                self._summary_train_writer.add_summary(summary[0], batch_nr)
 
             # Note performance
-            costs.append(c[0])
+            costs.append(c)
             batches.append(batch_nr + 1)
 
             if verbose:
@@ -219,7 +220,7 @@ class BasicRecurrent(DetektorModel):
                     print("Batch {: 8d} / {: 8d}. cost = {:10.2f}. learning_rate = {:.2e}"
                           .format(batch_nr + 1,
                                   self.n_batches,
-                                  c[0],
+                                  c,
                                   learning_rates[batch_nr]))
 
         # Done
