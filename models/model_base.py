@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 
 from util.tensor_provider import TensorProvider
@@ -9,10 +10,11 @@ from util.utilities import ensure_folder
 
 
 class DetektorModel:
-    def __init__(self, results_path):
+    def __init__(self, results_path, tf_save=False):
         # Make graph and session
         self._tf_graph = tf.Graph()
         self._sess = tf.Session(graph=self._tf_graph)
+        self.tf_save = tf_save
 
         # Set path
         if results_path is not None:
@@ -42,4 +44,33 @@ class DetektorModel:
 
     def summary_to_string(self):
         # Coverts all relevant model properties to be printed
-        raise NotImplementedError
+        warnings.warn("model.summary_to_string() not implemented.", UserWarning)
+
+        return ""
+
+    def save_model(self):
+        if self.results_path is not None and self.tf_save:
+            print("Saving model. ")
+
+            # Use model's graph
+            with self._tf_graph.as_default():
+
+                # Complete path
+                checkpoint_path = Path(self.results_path, "Checkpoint", 'model.checkpoint')
+
+                # Create folder if needed
+                ensure_folder(checkpoint_path)
+
+                # Save session to path
+                tf.train.Saver(tf.trainable_variables()).save(self._sess, str(checkpoint_path))
+
+    def load_model(self, results_path):
+        if self.tf_save:
+
+            # Use model's graph
+            with self._tf_graph.as_default():
+                # Complete path
+                checkpoint_path = Path(results_path, "Checkpoint", 'model.checkpoint')
+
+                # Load session from path
+                tf.train.Saver(tf.trainable_variables()).restore(self._sess, str(checkpoint_path))

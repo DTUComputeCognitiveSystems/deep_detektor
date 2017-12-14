@@ -15,7 +15,7 @@ class LogisticRegression(DetektorModel):
         return "LogisticRegression"
 
     def __init__(self, tensor_provider, use_bow=True, use_embedsum=False, display_step=1,
-                 learning_rate=0.001, training_epochs=20,
+                 learning_rate=0.001, training_epochs=20, results_path=None,
                  batch_size=None, batch_strategy="full", verbose=False, ):
         """
         :param TensorProvider tensor_provider:
@@ -23,7 +23,7 @@ class LogisticRegression(DetektorModel):
         :param int training_epochs:
         :param bool verbose:
         """
-        super().__init__(None)
+        super().__init__(results_path, tf_save=True)
 
         # Settings
         self.display_step = display_step

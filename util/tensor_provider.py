@@ -1,4 +1,3 @@
-import csv
 import json
 import random
 import sqlite3
@@ -8,7 +7,6 @@ from typing import Callable
 
 import fastText
 import matplotlib.pyplot as plt
-
 import nltk
 import numpy as np
 import tensorflow as tf
@@ -150,7 +148,7 @@ class TensorProvider:
 
     @property
     def off_limits_programs(self):
-        return (8720741, 9284846, 8665813)
+        return 8720741, 9284846, 8665813
 
     @property
     def program_ids(self):
@@ -158,19 +156,21 @@ class TensorProvider:
 
     @property
     def annotated_program_ids(self):
-        return self._annotated_program_ids
+        raise ValueError("You are not allowed to access this data!!")
+        # return self._annotated_program_ids
 
     @property
     def accessible_annotated_program_ids(self):
-        return [val for val in self.annotated_program_ids if val not in self.off_limits_programs]
+        return [val for val in self._annotated_program_ids if val not in self.off_limits_programs]
 
     @property
     def annotated_keys(self):
-        return self._annotated_keys
+        raise ValueError("You are not allowed to access this data!!")
+        # return self._annotated_keys
 
     @property
     def accessible_annotated_keys(self):
-        return [val for val in self.annotated_keys if val[0] not in self.off_limits_programs]
+        return [val for val in self._annotated_keys if val[0] not in self.off_limits_programs]
 
     def _get_word_embeddings(self, tokens, n_words=None):
 
@@ -416,6 +416,7 @@ def reshape_square(a_matrix, pad_value=0, return_pad_mask=False):
     Reshapes any weirds sized numpy-tensor into a square matrix that can be plotted.
     :param np.ndarray a_matrix:
     :param float | int pad_value: Valuee to pad with.
+    :param bool return_pad_mask:
     :return:
     """
 
@@ -449,33 +450,32 @@ if __name__ == "__main__":
     sparse = {"bow"}
     plt.close("all")
 
-    tensor_provider = TensorProvider(verbose=True)
+    the_tensor_provider = TensorProvider(verbose=True)
     print("\nTesting tensor provider.")
-    test_nrs = random.sample(range(len(tensor_provider.keys)), 20)
-    data_keys = tensor_provider._convert_to_keys(test_nrs)
-    test = tensor_provider.load_data_tensors(test_nrs,
-                                             word_counts=True,
-                                             char_counts=True,
-                                             word_embedding=True,
-                                             word_embedding_success=True,
-                                             pos_tags=True,
-                                             char_embedding=True,
-                                             bow=True,
-                                             embedding_sum=True,
-                                             # embedding_mean=True,
-                                             labels=True)
-    test_tokens = tensor_provider.load_tokens(test_nrs)
+    the_test_nrs = random.sample(range(len(the_tensor_provider.keys)), 20)
+    test = the_tensor_provider.load_data_tensors(the_test_nrs,
+                                                 word_counts=True,
+                                                 char_counts=True,
+                                                 word_embedding=True,
+                                                 word_embedding_success=True,
+                                                 pos_tags=True,
+                                                 char_embedding=True,
+                                                 bow=True,
+                                                 embedding_sum=True,
+                                                 # embedding_mean=True,
+                                                 labels=True)
+    test_tokens = the_tensor_provider.load_tokens(the_test_nrs)
 
     print("Shapes:")
-    for key, val in test.items():
-        if isinstance(val, dict):
-            print("\t{} : dict {}".format(key, len(val)))
-        elif isinstance(val, np.ndarray):
-            print("\t{} : Array {}".format(key, val.shape))
+    for a_key, a_val in test.items():
+        if isinstance(a_val, dict):
+            print("\t{} : dict {}".format(a_key, len(a_val)))
+        elif isinstance(a_val, np.ndarray):
+            print("\t{} : Array {}".format(a_key, a_val.shape))
         else:
-            print("\t{} : Unknown type: {}".format(key, type(val).__name__))
+            print("\t{} : Unknown type: {}".format(a_key, type(a_val).__name__))
 
-    for key, tensor in test.items():
+    for a_key, tensor in test.items():
         if not isinstance(tensor, dict):
             plt.figure()
 
@@ -486,33 +486,32 @@ if __name__ == "__main__":
                 plt.colorbar()
 
             elif len(tensor.shape) == 2:
-                if key in sparse:
-                    x, y = np.where(tensor != 0)
-                    plt.scatter(x, y)
+                if a_key in sparse:
+                    xx, yy = np.where(tensor != 0)
+                    plt.scatter(xx, yy)
                 else:
                     plt.imshow(tensor.T, aspect="auto")
                 plt.xlabel("Sample")
                 plt.ylabel("Features")
 
             else:
-                rows = cols = np.math.ceil(np.math.sqrt(tensor.shape[0]))
-                if rows * (cols - 1) == tensor.shape[0]:
+                the_rows = cols = np.math.ceil(np.math.sqrt(tensor.shape[0]))
+                if the_rows * (cols - 1) == tensor.shape[0]:
                     cols -= 1
                 for nr in range(tensor.shape[0]):
-                    plt.subplot(rows, cols, nr+1)
+                    plt.subplot(the_rows, cols, nr + 1)
                     plt.imshow(tensor[nr, :, :])
-                    plt.xlabel(key)
+                    plt.xlabel(a_key)
                     plt.ylabel("Time")
-            plt.suptitle(key)
+            plt.suptitle(a_key)
         else:
-            print(key)
-            print(test[key])
+            print(a_key)
+            print(test[a_key])
 
-    n = len(tensor_provider.keys)
-    assert all([len(val) == n for val in [
-        tensor_provider.keys,
-        tensor_provider.labels,
-        tensor_provider.tokens,
-        tensor_provider.pos_tags
+    n = len(the_tensor_provider.keys)
+    assert all([len(a_val) == n for a_val in [
+        the_tensor_provider.keys,
+        the_tensor_provider.labels,
+        the_tensor_provider.tokens,
+        the_tensor_provider.pos_tags
     ]]), "Not all resources in TensorProvider has same length."
-
