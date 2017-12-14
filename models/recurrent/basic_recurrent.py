@@ -1,7 +1,10 @@
+from time import time
+
 from models.model_base import DetektorModel
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 from util.tensor_provider import TensorProvider
 from util.learning_rate_utilities import linear_geometric_curve, primary_secondary_plot
@@ -10,11 +13,12 @@ from pathlib import Path
 
 
 class BasicRecurrent(DetektorModel):
-    def __init__(self, tensor_provider, recurrent_units=100, linear_units=(50,),
+    def __init__(self, tensor_provider, recurrent_units=150, linear_units=(100, 40),
                  word_embedding=True, pos_tags=True, char_embedding=True,
-                 n_batches=50000, batch_size=64,
-                 display_step=10, results_path=None, progressive_learning_rate=False,
-                 optimizer_class=tf.train.RMSPropOptimizer):
+                 n_batches=6000, batch_size=64,
+                 display_step=1, results_path=None, progressive_learning_rate=False,
+                 optimizer_class=tf.train.RMSPropOptimizer,
+                 recurrent_neuron_type=tf.nn.rnn_cell.LSTMCell):
         """
         :param TensorProvider tensor_provider: Provides data for model.
         :param list | tuple linear_units: Number of units in fully-connected layers.
@@ -41,6 +45,7 @@ class BasicRecurrent(DetektorModel):
         self.linear_units = linear_units
         self.recurrent_units = recurrent_units
         self.optimizer_class = optimizer_class
+        self.recurrent_neuron_type = recurrent_neuron_type
 
         # Uninitialized fields
         self.num_features = self.inputs = self.input_lengths = self.truth = self._rec_cell = self.rec_cell_outputs = \
@@ -64,16 +69,21 @@ class BasicRecurrent(DetektorModel):
 
             # Recurrent layer
             with tf.name_scope("recurrent_layer"):
-                self._rec_cell = tf.nn.rnn_cell.GRUCell(num_units=self.recurrent_units)
+                self._rec_cell = self.recurrent_neuron_type(num_units=self.recurrent_units)
                 self.rec_cell_outputs, self.rec_cell_state = tf.nn.dynamic_rnn(cell=self._rec_cell,
                                                                                inputs=self.inputs,
                                                                                sequence_length=self.input_lengths,
                                                                                dtype=tf.float32)
 
+            # Get output from recurrent neuron
+            if isinstance(self.rec_cell_state, tf.nn.rnn_cell.LSTMStateTuple):
+                c_input = self.rec_cell_state[1]
+            else:
+                c_input = self.rec_cell_state
+
             # Fully connected layers
             self.feedforward_activations = []
             last_units = self.recurrent_units
-            c_input = self.rec_cell_state
             for layer_nr, n_units in enumerate(self.linear_units):
                 layer_nr += 1
                 with tf.name_scope("ff_layer{}".format(layer_nr)):
@@ -179,6 +189,7 @@ class BasicRecurrent(DetektorModel):
         costs = []
         batches = []
         c_learning_rate = learning_rates[0]
+        start_time = time()
         for batch_nr in range(self.n_batches):
             if self.progressive_learning_rate:
                 c_learning_rate = learning_rates[batch_nr]
@@ -232,7 +243,14 @@ class BasicRecurrent(DetektorModel):
                 # Print validation
                 if (batch_nr + 1) % self.display_step == 0 and verbose:
                     print(verbose * " ", end="")
-                    print("Batch {: 8d} / {: 8d}. cost = {:10.2f}. learning_rate = {:.2e}"
+                    if self.progressive_learning_rate:
+                        print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}. learning_rate = {:.2e}"
+                    else:
+                        print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}."
+
+                    time_label = "{}, {:7f}s : ".format(datetime.now().strftime("%H:%M:%S"),
+                                                                time() - start_time)
+                    print(time_label + print_formatter
                           .format(batch_nr + 1,
                                   self.n_batches,
                                   c,

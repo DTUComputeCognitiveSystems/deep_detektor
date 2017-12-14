@@ -31,7 +31,6 @@ class SVMSK(DetektorModel):
                                                              embedding_sum=self.use_embedsum)
         self.model = SVC(verbose=self.verbose, probability=True)
 
-
     def fit(self, tensor_provider, train_idx, verbose=0):
         if verbose:
             print(verbose * " " + "Fitting {}".format(self.name()))
@@ -50,7 +49,7 @@ class SVMSK(DetektorModel):
         y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
 
         # Training cycle
-        self.model.fit(x,y)
+        self.model.fit(x, y)
 
         if verbose:
             print(verbose * " " + "Optimization Finished!")
