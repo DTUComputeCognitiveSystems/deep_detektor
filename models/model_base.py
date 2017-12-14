@@ -30,11 +30,12 @@ class DetektorModel:
     def initialize_model(self, tensor_provider):
         raise NotImplementedError
 
-    def fit(self, tensor_provider, train_idx, verbose=0):
+    def fit(self, tensor_provider, train_idx, verbose=0, y=None):
         """
         :param TensorProvider tensor_provider:
         :param list train_idx:
         :param int verbose:
+        :param list | np.ndarray y:
         :return:
         """
         raise NotImplementedError

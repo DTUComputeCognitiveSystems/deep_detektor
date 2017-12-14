@@ -166,7 +166,8 @@ class LogisticRegressionSK(DetektorModel):
         self.use_bow = use_bow
         self.use_embedsum = use_embedsum
 
-        self.num_features = self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = None
+        self.num_features = self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = self.model \
+            = None
 
     def initialize_model(self, tensor_provider):
         # Get number of features
@@ -174,8 +175,7 @@ class LogisticRegressionSK(DetektorModel):
                                                              embedding_sum=self.use_embedsum)
         self.model = LogRegSK(verbose=self.verbose)
 
-
-    def fit(self, tensor_provider, train_idx, verbose=0):
+    def fit(self, tensor_provider, train_idx, verbose=0, y=None):
         if verbose:
             print(verbose * " " + "Fitting {}".format(self.name()))
             verbose += 2
@@ -190,7 +190,8 @@ class LogisticRegressionSK(DetektorModel):
             x = x.todense()
 
         # Load labels
-        y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
+        if y is None:
+            y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
 
         # Training cycle
         self.model.fit(x,y)
