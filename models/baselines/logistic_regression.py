@@ -11,7 +11,7 @@ class LogisticRegression(DetektorModel):
     def name(cls):
         return "LogisticRegression"
 
-    def __init__(self, tensor_provider, use_bow=True, use_embedsum=False,
+    def __init__(self, tensor_provider, use_bow=True, use_embedsum=False, display_step=1,
                  learning_rate=0.001, training_epochs=20,
                  batch_size=None, batch_strategy="full", verbose=False,):
         """
@@ -26,6 +26,7 @@ class LogisticRegression(DetektorModel):
         self.num_features = tensor_provider.input_dimensions(bow=use_bow, embedding_sum=use_embedsum)
 
         # Settings
+        self.display_step = display_step
         self.learning_rate = learning_rate
         self.training_epochs = training_epochs
         self.verbose = verbose
@@ -59,7 +60,7 @@ class LogisticRegression(DetektorModel):
             # Run the initializer
             self._sess.run(tf.global_variables_initializer())
 
-    def fit(self, tensor_provider, train_idx, verbose=0, display_step=1, **kwargs):
+    def fit(self, tensor_provider, train_idx, verbose=0):
         if verbose:
             print(verbose * " " + "Fitting {}".format(self.name()))
             verbose += 2
@@ -95,7 +96,7 @@ class LogisticRegression(DetektorModel):
 
             # Display logs per epoch step
             if verbose:
-                if (epoch + 1) % display_step == 0 and verbose:
+                if (epoch + 1) % self.display_step == 0 and verbose:
                     print(verbose * " " + "Epoch:", '%04d' % (epoch + 1), "cost=", "{:.9f}".format(c))
 
         if verbose:

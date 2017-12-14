@@ -14,12 +14,11 @@ class DetektorModel:
     def name(cls):
         raise NotImplementedError
 
-    def fit(self, tensor_provider, train_idx, verbose=0, **kwargs):
+    def fit(self, tensor_provider, train_idx, verbose=0):
         """
         :param TensorProvider tensor_provider:
         :param list train_idx:
         :param int verbose:
-        :param kwargs: Model-specific training-settings.
         :return:
         """
         raise NotImplementedError

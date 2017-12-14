@@ -11,7 +11,7 @@ class MLP(DetektorModel):
     def name(cls):
         return "MLP"
 
-    def __init__(self, tensor_provider, hidden_units=2, learning_rate=0.001,
+    def __init__(self, tensor_provider, hidden_units=2, learning_rate=0.001, display_step=1,
                  training_epochs=20, verbose=False, use_bow=True, use_embedsum=False,
                  class_weights=np.array([1.0, 1.0]), batch_size=None, batch_strategy="full"):
         """
@@ -27,6 +27,7 @@ class MLP(DetektorModel):
         self.num_features = tensor_provider.input_dimensions(bow=use_bow, embedding_sum=use_embedsum)
 
         # Settings
+        self.display_step = display_step
         self.learning_rate = learning_rate
         self.hidden_units = hidden_units
         self.training_epochs = training_epochs
@@ -67,7 +68,7 @@ class MLP(DetektorModel):
             # Run the initializer
             self._sess.run(tf.global_variables_initializer())
 
-    def fit(self, tensor_provider, train_idx, verbose=0, display_step=1, **kwargs):
+    def fit(self, tensor_provider, train_idx, verbose=0):
         if verbose:
             print(verbose * " " + "Fitting {}".format(self.name()))
             verbose += 2
@@ -101,7 +102,7 @@ class MLP(DetektorModel):
 
             # Display logs per epoch step
             if verbose:
-                if (epoch + 1) % display_step == 0 and verbose:
+                if (epoch + 1) % self.display_step == 0 and verbose:
                     print(verbose * " " + "Epoch:", '%04d' % (epoch + 1), "cost=", "{:.9f}".format(c))
 
         if verbose:

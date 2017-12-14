@@ -157,7 +157,8 @@ if __name__ == "__main__":
 
     # Choose model
     # model = LogisticRegression
-    model = MLP
+    model = BasicRecurrent
+    # model = MLP
 
     # Results path
     results_path = Path(ProjectPaths.results, "single_train", model.name())
