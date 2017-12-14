@@ -454,11 +454,15 @@ class TensorProvider:
 
         # Sort predictions
         best_indices = np.argsort(predictions)[-n_best:]
-        best_sentences = sentence_indices[best_indices]
+        best_sentences = []
+        best_sentences_score = []
+        best_test_indices = []
+        for e in reversed(range(n_best)):
+            best_sentences.append(sentence_indices[best_indices[e]])
+            best_sentences_score.append(predictions[best_indices[e]])
 
         # Return best sentences
-        return self.load_original_sentences(best_sentences)
-
+        return self.load_original_sentences(best_sentences), best_sentences_score, best_sentences
 
 
 

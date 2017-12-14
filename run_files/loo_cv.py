@@ -118,8 +118,15 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
 
             # Save the best ranked senteces (in terms of claim)
             if save_ranked_sentences:
+                rank_file.write("Test program: %s \n" %program_names[program_nr])
                 rank_file.write(model.summary_to_string())
-                rank_file.write(tensor_provider.get_claim_predictions(y_pred, test_idx) )
+                ranked_sentences, rank_score, rank_indices \
+                    = tensor_provider.get_claim_predictions(y_pred, test_idx)
+                rank_file.write("Sentence, Proability of claim, Truth \n")
+                ranked_labels = tensor_provider.load_labels(rank_indices)
+                for r in range(len(ranked_sentences)):
+                    rank_file.write("%s , %.5f, %i \n"%(ranked_sentences[r], rank_score[r], ranked_labels[r]) )
+                rank_file.write("\n")
 
 
             # Evaluate with eval_functions
