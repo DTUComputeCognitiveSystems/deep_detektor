@@ -10,14 +10,12 @@ from pathlib import Path
 
 
 class BasicRecurrent(DetektorModel):
-    def __init__(self, tensor_provider, recurrent_units=100, linear_units=(50,),
+    def __init__(self, recurrent_units=100, linear_units=(50,),
                  word_embedding=True, pos_tags=True, char_embedding=True,
                  n_batches=1000, batch_size=200,
                  display_step=10, results_path=None,
-                 optimizer=tf.train.RMSPropOptimizer):
+                 optimizer_class=tf.train.RMSPropOptimizer):
         """
-
-        :param TensorProvider tensor_provider: Provides data for model.
         :param list | tuple linear_units: Number of units in fully-connected layers.
         :param int recurrent_units: number of units in recurrent layer.
         :param bool word_embedding: Use word-embeddings as inputs for network.
@@ -40,7 +38,15 @@ class BasicRecurrent(DetektorModel):
         self.use_word_embedding = word_embedding
         self.linear_units = linear_units
         self.recurrent_units = recurrent_units
+        self.optimizer_class = optimizer_class
 
+        # Uninitialized fields
+        self.num_features = self.inputs = self.input_lengths = self.truth = self._rec_cell = self.rec_cell_outputs = \
+            self.rec_cell_state = self.feedforward_activations = self._ffout_m = self._ffout_b = self._ffout_prod = \
+            self._ffout_a = self.prediction = self.cost = self.learning_rate = self.optimize_op = \
+            self._summary_merged = self._summary_train_writer = self.optimizer = None
+
+    def initialize_model(self, tensor_provider):
         # Use model's graph
         with self._tf_graph.as_default():
 
@@ -105,7 +111,8 @@ class BasicRecurrent(DetektorModel):
                 # Gradient Descent
                 with tf.name_scope("Optimizer"):
                     self.learning_rate = tf.placeholder(shape=(), dtype=tf.float32, name="learning_rate")
-                    self.optimizer = optimizer(self.learning_rate).minimize(self.cost)
+                    self.optimizer = self.optimizer_class(self.learning_rate)
+                    self.optimize_op = self.optimizer.minimize(self.cost)
 
                 # Merge summaries
                 self._summary_merged = self._summary_train_writer = None
@@ -183,7 +190,7 @@ class BasicRecurrent(DetektorModel):
             }
 
             # Fetching
-            fetch = [self.optimizer, self.cost]
+            fetch = [self.optimize_op, self.cost]
             if self.results_path is not None:
                 fetch.append(self._summary_merged)
 

@@ -25,6 +25,9 @@ class DetektorModel:
     def name(cls):
         raise NotImplementedError
 
+    def initialize_model(self, tensor_provider):
+        raise NotImplementedError
+
     def fit(self, tensor_provider, train_idx, verbose=0):
         """
         :param TensorProvider tensor_provider:

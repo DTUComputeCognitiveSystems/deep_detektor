@@ -83,6 +83,9 @@ def single_training(tensor_provider, model_class,
     # Get truth of test-set
     y_true = tensor_provider.load_labels(data_keys_or_idx=test_idx)
 
+    # Initialize model
+    model.initialize_model(tensor_provider=tensor_provider)
+
     # Fit model
     model.fit(tensor_provider=tensor_provider,
               train_idx=train_idx,
