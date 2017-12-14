@@ -7,7 +7,7 @@ import xarray as xr
 from models.model_base import DetektorModel
 from project_paths import ProjectPaths
 from evaluations.area_roc import ROC, plot_roc
-from models.baselines import LogisticRegression, MLP, LogisticRegressionSK
+from models.baselines import LogisticRegression, MLP, LogisticRegressionSK, SVMSK
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
     AreaUnderROC
 from models.recurrent.basic_recurrent import BasicRecurrent
@@ -166,6 +166,9 @@ if __name__ == "__main__":
     #     tensor_provider=the_tensor_provider,
     # )
     #model = MLP(
+    #    tensor_provider=the_tensor_provider,
+    #)
+    #model = SVMSK(
     #    tensor_provider=the_tensor_provider,
     #)
     model = LogisticRegressionSK(
