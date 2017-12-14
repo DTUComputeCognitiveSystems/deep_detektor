@@ -51,7 +51,7 @@ class TensorProvider:
         if verbose:
             print("Loading keys.")
         self.labels = dict()
-        self.keys = []
+        self._keys = []
         program_ids = set()
         database_path = Path(ProjectPaths.tensor_provider, "all_programs.db")
         connection = sqlite3.connect(str(database_path))
@@ -146,13 +146,21 @@ class TensorProvider:
     def set_bow_vocabulary(self, vocabulary=None):
         self.bow_vocabulary = self._complete_bow_vocabulary if vocabulary is None else vocabulary
 
+    ####
+    # Program IDs
+
     @property
     def off_limits_programs(self):
         return 8720741, 9284846, 8665813
 
     @property
     def program_ids(self):
-        return self._program_ids
+        raise ValueError("You are not allowed to access this data!!")
+        # return self._program_ids
+
+    @property
+    def accessible_program_ids(self):
+        return [val for val in self._program_ids if val not in self.off_limits_programs]
 
     @property
     def annotated_program_ids(self):
@@ -162,6 +170,18 @@ class TensorProvider:
     @property
     def accessible_annotated_program_ids(self):
         return [val for val in self._annotated_program_ids if val not in self.off_limits_programs]
+
+    ####
+    # Keys
+
+    @property
+    def keys(self):
+        raise ValueError("You are not allowed to access this data!!")
+        # return self._keys
+
+    @property
+    def accessible_keys(self):
+        return [val for val in self._keys if val[0] not in self.off_limits_programs]
 
     @property
     def annotated_keys(self):

@@ -142,12 +142,18 @@ def single_training(tensor_provider, model_class,
                                                                              y_pred=y_pred,
                                                                              y_pred_binary=y_pred_binary)
 
+    # Save model
+    model.save_model()
+
+    # Return list
+    returns = [classification_results_train, classification_results_test,
+               special_results_train, special_results_test, model.summary_to_string()]
+
+    # Additional returns
     if return_predictions:
-        return classification_results_train, classification_results_test, \
-               special_results_train, special_results_test, model.summary_to_string(), \
-               train_predictions, test_predictions
-    return classification_results_train, classification_results_test, \
-           special_results_train, special_results_test, model.summary_to_string()
+        returns.extend([train_predictions, test_predictions])
+
+    return tuple(returns)
 
 
 if __name__ == "__main__":
@@ -158,22 +164,23 @@ if __name__ == "__main__":
     results_path = Path(ProjectPaths.results, "single_train")
 
     # Choose model
-    # model = BasicRecurrent(
-    #     tensor_provider=the_tensor_provider,
-    #     results_path=results_path
-    # )
+    model = BasicRecurrent(
+        tensor_provider=the_tensor_provider,
+        results_path=results_path
+    )
     # model = LogisticRegression(
     #     tensor_provider=the_tensor_provider,
     # )
-    #model = MLP(
-    #    tensor_provider=the_tensor_provider,
-    #)
-    #model = SVMSK(
-    #    tensor_provider=the_tensor_provider,
-    #)
-    model = LogisticRegressionSK(
-             tensor_provider=the_tensor_provider,
-        )
+    # model = MLP(
+    #     tensor_provider=the_tensor_provider,
+    # )
+    # model = SVMSK(
+    #     tensor_provider=the_tensor_provider,
+    #     verbose=True
+    # )
+    # model = LogisticRegressionSK(
+    #      tensor_provider=the_tensor_provider,
+    # )
 
     # Clear out results folder content
     if model.results_path is not None:
