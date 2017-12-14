@@ -60,7 +60,7 @@ class TensorProvider:
         for row in rows:
             key = (row[0], row[1])
             program_ids.add(row[0])
-            self.keys.append(key)
+            self._keys.append(key)
             self.labels[key] = None
         cursor.close()
         connection.close()
@@ -293,7 +293,7 @@ class TensorProvider:
 
     def _convert_to_keys(self, data_keys_or_idxs):
         if isinstance(data_keys_or_idxs[0], (int, np.int32, np.int64)):
-            data_keys_or_idxs = [self.keys[val] for val in data_keys_or_idxs]
+            data_keys_or_idxs = [self._keys[val] for val in data_keys_or_idxs]
 
         return data_keys_or_idxs
 
@@ -589,9 +589,9 @@ if __name__ == "__main__":
             print(a_key)
             print(test[a_key])
 
-    n = len(the_tensor_provider.keys)
+    n = len(the_tensor_provider._keys)
     assert all([len(a_val) == n for a_val in [
-        the_tensor_provider.keys,
+        the_tensor_provider._keys,
         the_tensor_provider.labels,
         the_tensor_provider.tokens,
         the_tensor_provider.pos_tags
