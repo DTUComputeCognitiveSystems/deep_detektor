@@ -10,12 +10,14 @@ from pathlib import Path
 
 
 class BasicRecurrent(DetektorModel):
-    def __init__(self, recurrent_units=100, linear_units=(50,),
+    def __init__(self, tensor_provider, recurrent_units=100, linear_units=(50,),
                  word_embedding=True, pos_tags=True, char_embedding=True,
                  n_batches=1000, batch_size=200,
                  display_step=10, results_path=None,
                  optimizer_class=tf.train.RMSPropOptimizer):
         """
+
+        :param TensorProvider tensor_provider: Provides data for model.
         :param list | tuple linear_units: Number of units in fully-connected layers.
         :param int recurrent_units: number of units in recurrent layer.
         :param bool word_embedding: Use word-embeddings as inputs for network.

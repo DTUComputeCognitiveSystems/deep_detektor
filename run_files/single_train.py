@@ -157,9 +157,15 @@ if __name__ == "__main__":
     results_path = Path(ProjectPaths.results, "single_train")
 
     # Choose model
-    model = BasicRecurrent(
+    # model = BasicRecurrent(
+    #     tensor_provider=the_tensor_provider,
+    #     results_path=results_path
+    # )
+    # model = LogisticRegression(
+    #     tensor_provider=the_tensor_provider,
+    # )
+    model = MLP(
         tensor_provider=the_tensor_provider,
-        results_path=results_path
     )
 
     # Run training on a single model

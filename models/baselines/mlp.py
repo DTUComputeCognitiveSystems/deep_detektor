@@ -23,9 +23,6 @@ class MLP(DetektorModel):
         """
         super().__init__(None)
 
-        # Get number of features
-        self.num_features = tensor_provider.input_dimensions(bow=use_bow, embedding_sum=use_embedsum)
-
         # Settings
         self.display_step = display_step
         self.learning_rate = learning_rate
@@ -38,12 +35,19 @@ class MLP(DetektorModel):
         self.batch_size = batch_size
         self.batch_strategy = batch_strategy
 
+        self.num_features = self.x = self.y = self.Wxz = self.bz = self.Wzy = self.by = self.z = self.pred = \
+            self.cost = self.optimizer = None
+
+    def initialize_model(self, tensor_provider):
+        # Get number of features
+        self.num_features = tensor_provider.input_dimensions(bow=self.use_bow,
+                                                             embedding_sum=self.use_embedsum)
+
         ####
         # Build model
 
         # Use model's graph
         with self._tf_graph.as_default():
-
             # tf Graph Input
             self.x = tf.placeholder(tf.float32, [None, self.num_features])
             self.y = tf.placeholder(tf.float32, [None, ])  # binary classification
@@ -86,9 +90,9 @@ class MLP(DetektorModel):
         for epoch in range(self.training_epochs):
             if self.batch_strategy == "full" or self.batch_size is None:
                 _, c = self._sess.run([self.optimizer, self.cost], feed_dict={self.x: x,
-                                                                          self.y: y})
+                                                                              self.y: y})
             else:
-                n_updates = int(ceil(x.shape[0]/self.batch_size))
+                n_updates = int(ceil(x.shape[0] / self.batch_size))
                 for n in range(n_updates):
                     x_batch, y_batch = get_next_bacth(data=x, labels=y,
                                                       batch_size=self.batch_size,
@@ -132,10 +136,10 @@ class MLP(DetektorModel):
     def summary_to_string(self):
         result_str = ""
         result_str += self.name() + "\n"
-        result_str += "Num input features: %i\n"%self.num_features
+        result_str += "Num input features: %i\n" % self.num_features
         result_str += "Num hidden units: %i\n" % self.hidden_units
-        result_str += "Class weights in cost-fun: (%f,%f)\n" %(self.class_weights[0], self.class_weights[1])
-        result_str += "Learning rate: %f  \n"%self.learning_rate
+        result_str += "Class weights in cost-fun: (%f,%f)\n" % (self.class_weights[0], self.class_weights[1])
+        result_str += "Learning rate: %f  \n" % self.learning_rate
         result_str += "Num training epochs: %i  \n" % self.training_epochs
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum

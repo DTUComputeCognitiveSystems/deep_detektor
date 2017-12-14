@@ -6,6 +6,7 @@ from util.utilities import get_next_bacth
 from models.model_base import DetektorModel
 from math import ceil
 
+
 class LogisticRegression(DetektorModel):
     @classmethod
     def name(cls):
@@ -13,7 +14,7 @@ class LogisticRegression(DetektorModel):
 
     def __init__(self, tensor_provider, use_bow=True, use_embedsum=False, display_step=1,
                  learning_rate=0.001, training_epochs=20,
-                 batch_size=None, batch_strategy="full", verbose=False,):
+                 batch_size=None, batch_strategy="full", verbose=False, ):
         """
         :param TensorProvider tensor_provider:
         :param float learning_rate:
@@ -21,9 +22,6 @@ class LogisticRegression(DetektorModel):
         :param bool verbose:
         """
         super().__init__(None)
-
-        # Get number of features
-        self.num_features = tensor_provider.input_dimensions(bow=use_bow, embedding_sum=use_embedsum)
 
         # Settings
         self.display_step = display_step
@@ -34,6 +32,13 @@ class LogisticRegression(DetektorModel):
         self.use_embedsum = use_embedsum
         self.batch_size = batch_size
         self.batch_strategy = batch_strategy
+
+        self.num_features = self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = None
+
+    def initialize_model(self, tensor_provider):
+        # Get number of features
+        self.num_features = tensor_provider.input_dimensions(bow=self.use_bow,
+                                                             embedding_sum=self.use_embedsum)
 
         ####
         # Build model
@@ -67,7 +72,8 @@ class LogisticRegression(DetektorModel):
 
         # Get training data
         x = tensor_provider.load_concat_input_tensors(data_keys_or_idx=train_idx,
-                                                         bow=self.use_bow, embedding_sum=self.use_embedsum)
+                                                      bow=self.use_bow,
+                                                      embedding_sum=self.use_embedsum)
 
         # Fetch data
         if not isinstance(x, np.ndarray):
@@ -80,9 +86,9 @@ class LogisticRegression(DetektorModel):
         for epoch in range(self.training_epochs):
             if self.batch_strategy == "full" or self.batch_size is None:
                 _, c = self._sess.run([self.optimizer, self.cost], feed_dict={self.x: x,
-                                                                          self.y: y})
+                                                                              self.y: y})
             else:
-                n_updates = int(ceil(x.shape[0]/self.batch_size))
+                n_updates = int(ceil(x.shape[0] / self.batch_size))
                 for n in range(n_updates):
                     x_batch, y_batch = get_next_bacth(data=x, labels=y,
                                                       batch_size=self.batch_size,
@@ -126,8 +132,8 @@ class LogisticRegression(DetektorModel):
     def summary_to_string(self):
         result_str = ""
         result_str += self.name() + "\n"
-        result_str += "Num input features: %i\n"%self.num_features
-        result_str += "Learning rate: %f  \n"%self.learning_rate
+        result_str += "Num input features: %i\n" % self.num_features
+        result_str += "Learning rate: %f  \n" % self.learning_rate
         result_str += "Num training epochs: %i  \n" % self.training_epochs
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum
