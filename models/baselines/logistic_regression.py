@@ -149,7 +149,7 @@ class LogisticRegression(DetektorModel):
 class LogisticRegressionSK(DetektorModel):
     @classmethod
     def name(cls):
-        return "LogisticRegression (Scikit-learn)"
+        return "LogisticRegressionSKLEARN"
 
     def __init__(self, tensor_provider, use_bow=True, use_embedsum=False, display_step=1, verbose=False):
         """
