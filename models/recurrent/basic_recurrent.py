@@ -12,8 +12,8 @@ from pathlib import Path
 class BasicRecurrent(DetektorModel):
     def __init__(self, tensor_provider, recurrent_units=100, linear_units=(50,),
                  word_embedding=True, pos_tags=True, char_embedding=True,
-                 n_batches=1000, batch_size=200,
-                 display_step=10, results_path=None,
+                 n_batches=50000, batch_size=64,
+                 display_step=10, results_path=None, progressive_learning_rate=False,
                  optimizer_class=tf.train.RMSPropOptimizer):
         """
         :param TensorProvider tensor_provider: Provides data for model.
@@ -34,6 +34,7 @@ class BasicRecurrent(DetektorModel):
         self.display_step = display_step
 
         # Settings
+        self.progressive_learning_rate = progressive_learning_rate
         self.use_char_embedding = char_embedding
         self.use_pos_tags = pos_tags
         self.use_word_embedding = word_embedding
@@ -162,6 +163,8 @@ class BasicRecurrent(DetektorModel):
                                                 end_value=1e-18,
                                                 geometric_component=3. / 4,
                                                 geometric_end=5)
+        if not self.progressive_learning_rate:
+            learning_rates[0] = 1e-3
 
         # Calc sample probability based on class-size
         # TODO: Move this to own function and implement a "batch_strategy" input
@@ -175,7 +178,11 @@ class BasicRecurrent(DetektorModel):
         # Run training batches
         costs = []
         batches = []
+        c_learning_rate = learning_rates[0]
         for batch_nr in range(self.n_batches):
+            if self.progressive_learning_rate:
+                c_learning_rate = learning_rates[batch_nr]
+
             c_indices = np.random.choice(train_idx, self.batch_size, replace=False,
                                          p=sample_weights)
             c_inputs = input_tensor[c_indices, :, :]
@@ -187,7 +194,7 @@ class BasicRecurrent(DetektorModel):
                 self.inputs: c_inputs,
                 self.input_lengths: c_input_lengths,
                 self.truth: c_truth,
-                self.learning_rate: learning_rates[batch_nr]
+                self.learning_rate: c_learning_rate
             }
 
             # Fetching
