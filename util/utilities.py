@@ -1,4 +1,6 @@
 from pathlib import Path
+from time import sleep
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -14,6 +16,12 @@ def get_dir(path):
         return path
     else:
         return path.parent
+
+
+def empty_folder(path: Path):
+    for the_file in path.glob("*"):  # type: Path
+        if the_file.is_file():
+            the_file.unlink()
 
 
 def ensure_folder(*arg):
@@ -48,7 +56,20 @@ def save_fig(path, only_png=False, only_pdf=False, dpi=None, bbox_inches="tight"
             plt.savefig(str(Path(str(path) + '.png')), dpi=dpi, **options)
     if not only_png:
         fig = plt.gcf()
-        fig.savefig(str(path) + '.pdf', format='pdf', pad_inches=0, **options)  # , dpi=axes_dpi
+
+        # Try storing (files may be temporarily held by another process - e.g. a PDF-viewer)
+        success = False
+        e = None
+        for _ in range(10):
+            try:
+                fig.savefig(str(path) + '.pdf', format='pdf', pad_inches=0, **options)  # , dpi=axes_dpi
+                success = True
+                break
+            except PermissionError as e:
+                sleep(0.25)
+        if not success:
+            raise e
+
 
 def get_next_bacth(data, labels, batch_size=None, strategy="weighted_sampling"):
     """
