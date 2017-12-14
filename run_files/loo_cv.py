@@ -5,6 +5,7 @@ import numpy as np
 import xarray as xr
 from sklearn.model_selection import LeaveOneOut
 
+from models.model_base import DetektorModel
 from project_paths import ProjectPaths
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
     AreaUnderROC
@@ -19,7 +20,7 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
                              eval_functions=None, limit=None, return_predictions=False):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
-    :param list[ClassVar] model_list: List of model-classes for testing.
+    :param list[DetektorModel] model_list: List of model-classes for testing.
     :param list[Evaluation] eval_functions: List of evaluation functions used to test models.
     :param bool return_predictions: If True, the method stores all model test-predictions and returns them as well.
                                     Can be used to determine whether errors are the same across models.
@@ -89,11 +90,11 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
         y_true = tensor_provider.load_labels(data_keys_or_idx=test_idx)
 
         # Go through models
-        for model_nr, model_class in enumerate(model_list):
-            model_name = model_class.name()
+        for model_nr, model in enumerate(model_list):
+            model_name = model.name()
 
             # Initialize model
-            model = model_class(tensor_provider=tensor_provider)  # type: BasicRecurrent
+            model.initialize_model(tensor_provider=tensor_provider)
 
             # Fit model
             model.fit(tensor_provider=tensor_provider,
@@ -123,9 +124,9 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
                     classification_results[program_nr, model_nr, evaluation_nr] = evaluation_result
                     evaluation_nr += 1
                 else:
-                    special_results[(model_class.name(), evalf.name(), program_nr)] = evalf(y_true=y_true,
-                                                                                            y_pred=y_pred,
-                                                                                            y_pred_binary=y_pred_binary)
+                    special_results[(model.name(), evalf.name(), program_nr)] = evalf(y_true=y_true,
+                                                                                      y_pred=y_pred,
+                                                                                      y_pred_binary=y_pred_binary)
     ###
     # Plot ROC curves if wanted
 
@@ -176,7 +177,10 @@ if __name__ == "__main__":
     program_limit = None
 
     # Choose models
-    models = [LogisticRegression, MLP]
+    models = [
+        LogisticRegression(tensor_provider=the_tensor_provider),
+        MLP(tensor_provider=the_tensor_provider)
+    ]
 
     # Run LOO-program
     loo_path = Path(ProjectPaths.results, "LOO_CV")
