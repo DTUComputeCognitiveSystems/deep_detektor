@@ -11,6 +11,7 @@ from models.baselines import LogisticRegression, MLP, LogisticRegressionSK, SVMS
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
     AreaUnderROC
 from models.recurrent.basic_recurrent import BasicRecurrent
+from models.PositiveLearningElkan.pu_learning import PULogisticRegressionSK
 from util.tensor_provider import TensorProvider
 from util.utilities import ensure_folder, save_fig
 
@@ -166,7 +167,10 @@ if __name__ == "__main__":
     # Choose model
     model = BasicRecurrent(
         tensor_provider=the_tensor_provider,
-        results_path=results_path
+        results_path=results_path,
+        n_batches=10000,
+        recurrent_units=500,
+        linear_units=(500,250)
     )
     # model = LogisticRegression(
     #     tensor_provider=the_tensor_provider,
