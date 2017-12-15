@@ -72,7 +72,7 @@ class MLP(DetektorModel):
             # Run the initializer
             self._sess.run(tf.global_variables_initializer())
 
-    def fit(self, tensor_provider, train_idx, verbose=0):
+    def fit(self, tensor_provider, train_idx, verbose=0, y=None):
         if verbose:
             print(verbose * " " + "Fitting {}".format(self.name()))
             verbose += 2
@@ -84,7 +84,8 @@ class MLP(DetektorModel):
             x = x.todense()
 
         # Load labels
-        y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
+        if y is None:
+            y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
 
         # Training cycle
         for epoch in range(self.training_epochs):

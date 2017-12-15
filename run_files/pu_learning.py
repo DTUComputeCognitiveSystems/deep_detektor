@@ -5,24 +5,33 @@ from pathlib import Path
 import numpy as np
 
 from collections import defaultdict
+
 from evaluations import Accuracy, F1, AreaUnderROC
 from models.baselines import LogisticRegressionSK
 from project_paths import ProjectPaths
 from util.tensor_provider import TensorProvider
-from util.utilities import ensure_folder
+from util.utilities import ensure_folder, redirect_stdout_to_file
 
+# Initialize tensor-provider (data-source)
+the_tensor_provider = TensorProvider(verbose=True)
 
 ###########
 # Settings
+
+# Make a model
+model = LogisticRegressionSK(
+    tensor_provider=the_tensor_provider,
+    use_bow=True, use_embedsum=True
+)
 
 # How confident should we be to include negatives?
 reliable_negative_threshold = 0.99
 
 # Number of iterations for program
-n_iterations = 3
+n_iterations = 5
 
 # Path for results
-results_path = Path(ProjectPaths.results, "pu_learning")
+results_path = Path(ProjectPaths.results, "pu_learning_{}".format(model.name()))
 
 ###########
 
@@ -33,11 +42,12 @@ except FileNotFoundError:
     pass
 ensure_folder(results_path)
 
+# Log file
+log_path = Path(results_path, "log.txt")
+redirect_stdout_to_file(log_path)
+
 # Dictionary for holding progression of labels
 label_progression = defaultdict(lambda: [])
-
-# Initialize tensor-provider (data-source)
-the_tensor_provider = TensorProvider(verbose=True)
 
 # Get all negative and unlabelled data
 all_keys = the_tensor_provider.accessible_keys
@@ -64,15 +74,16 @@ c_labels = labels
 print("\nRunning Positive-Unlabelled Learning.")
 for iteration_nr in range(n_iterations):
     print("\tIteration {}".format(iteration_nr))
-
-    # Make a model
-    print("\t\tMaking model")
-    model = LogisticRegressionSK(
-        tensor_provider=the_tensor_provider,
-    )
+    print("\t\tStats:")
+    print("\t\t\tTraining with {} samples".format(len(c_keys)))
+    print("\t\t\tPositives: {}".format(len([val for val in c_labels if val])))
+    print("\t\t\tNegatives: {}".format(len([val for val in c_labels if not val])))
 
     # Initialise model
+    print("\t\tInitializing model")
     model.initialize_model(tensor_provider=the_tensor_provider)
+    with Path(results_path, "settings.txt").open("w") as file:
+        file.write(model.summary_to_string())
 
     # Fit model
     print("\t\tFitting model")
@@ -109,6 +120,8 @@ for iteration_nr in range(n_iterations):
     print("\t\tSplitting into negative and unknown")
     reliable_negative_keys = [key for val, key in sorted_confidence_and_keys if val >= reliable_negative_threshold]
     continued_unlabelled_keys = [key for val, key in sorted_confidence_and_keys if val < reliable_negative_threshold]
+    print("\t\t\tReliable negatives: {}".format(len(reliable_negative_keys)))
+    print("\t\t\tUnlabelled: {}".format(len(continued_unlabelled_keys)))
 
     # Note new labels labels
     for key in p_keys:
@@ -131,15 +144,15 @@ connection = sqlite3.connect(str(database_path))
 cursor = connection.cursor()
 
 # Make table
-labels_command = "".join(["label_{} INTEGER NOT NULL,".format(idx) for idx in range(n_iterations+1)])
+labels_command = "".join(["label_{} INTEGER NOT NULL,".format(idx) for idx in range(n_iterations + 1)])
 command = (
-    "CREATE TABLE labels ("
-    "program_id INTEGER NOT NULL,"
-    "sentence_id INTEGER NOT NULL,"
-    "sentence TEXT NOT NULL," +
-    labels_command +
-    "PRIMARY KEY (program_id, sentence_id)"
-    ")"
+        "CREATE TABLE labels ("
+        "program_id INTEGER NOT NULL,"
+        "sentence_id INTEGER NOT NULL,"
+        "sentence TEXT NOT NULL," +
+        labels_command +
+        "PRIMARY KEY (program_id, sentence_id)"
+        ")"
 )
 cursor.execute(command)
 
@@ -150,9 +163,9 @@ data = [
 ]
 
 # Insert information
-labels_command = ",".join(["label_{}".format(idx) for idx in range(n_iterations+1)])
+labels_command = ",".join(["label_{}".format(idx) for idx in range(n_iterations + 1)])
 command = "INSERT INTO labels (program_id, sentence_id, sentence, {}) VALUES ({})" \
-        .format(labels_command, ",".join(["?" for val in range(4+n_iterations)]))
+    .format(labels_command, ",".join(["?" for val in range(4 + n_iterations)]))
 cursor.executemany(command, data)
 connection.commit()
 

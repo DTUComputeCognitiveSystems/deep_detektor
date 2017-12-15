@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from time import sleep
 
@@ -111,3 +112,23 @@ def get_next_bacth(data, labels, batch_size=None, strategy="weighted_sampling"):
         raise NotImplementedError
 
     return data_batch, labels_batch
+
+
+def redirect_stdout_to_file(path):
+    """
+    Redirects the stdout to both the console and to a file (experimental).
+    :param Path path: Path to log-file.
+    """
+    class Unbuffered:
+
+        def __init__(self, stream, path: Path):
+            self.stream = stream
+            self.file = path.open("w")
+
+        def write(self, data):
+            self.stream.write(data)
+            self.stream.flush()
+            self.file.write(data)
+            self.file.flush()
+
+    sys.stdout = Unbuffered(sys.stdout, path)
