@@ -1,6 +1,7 @@
 import shutil
 import sqlite3
 from pathlib import Path
+import json
 
 import numpy as np
 
@@ -35,6 +36,14 @@ n_iterations = 20
 results_path = Path(ProjectPaths.results, "pu_learning_{}".format(model.name()))
 
 ###########
+
+# Store pu-settings
+with Path(results_path, "pu_settings.json").open("w") as file:
+    temp = dict(
+        reliable_negative_threshold=reliable_negative_threshold,
+        n_iterations=n_iterations
+    )
+    file.write(json.dumps(temp))
 
 # Clean and ensure directory
 try:
