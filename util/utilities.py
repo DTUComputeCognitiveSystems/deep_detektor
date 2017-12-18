@@ -131,4 +131,7 @@ def redirect_stdout_to_file(path):
             self.file.write(data)
             self.file.flush()
 
+        def flush(self):
+            self.stream.flush()
+
     sys.stdout = Unbuffered(sys.stdout, path)
