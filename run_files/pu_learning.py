@@ -2,6 +2,7 @@ import shutil
 import sqlite3
 from pathlib import Path
 import json
+import pickle
 
 import numpy as np
 
@@ -23,7 +24,7 @@ the_tensor_provider = TensorProvider(verbose=True)
 # Make a model
 model = LogisticRegressionSK(
     tensor_provider=the_tensor_provider,
-    use_bow=True, use_embedsum=True
+    use_bow=True, use_embedsum=True,
 )
 
 # How confident should we be to include negatives?
@@ -34,6 +35,7 @@ n_iterations = 20
 
 # Path for results
 results_path = Path(ProjectPaths.results, "pu_learning_{}".format(model.name()))
+model.results_path = results_path
 
 ###########
 
@@ -151,6 +153,11 @@ for iteration_nr in range(n_iterations):
     # New data
     c_keys = p_keys + reliable_negative_keys
     c_labels = [True] * len(p_keys) + [False] * len(reliable_negative_keys)
+
+##################
+
+# Save final model
+model.save_model()
 
 ##################
 # Make database
