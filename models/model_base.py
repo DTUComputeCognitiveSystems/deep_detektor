@@ -40,6 +40,23 @@ class DetektorModel:
         :param list | np.ndarray y:
         :return:
         """
+        # Load labels (just ensuring that this works for all methods)
+        if y is None:
+            y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
+
+        # Run specific model's run-method
+        self._fit(tensor_provider=tensor_provider,
+                  train_idx=train_idx,
+                  y=y,
+                  verbose=verbose)
+
+    def _fit(self, tensor_provider, train_idx, y, verbose=0):
+        """
+        :param TensorProvider tensor_provider:
+        :param list train_idx:
+        :param int verbose:
+        :return:
+        """
         raise NotImplementedError
 
     def predict(self, tensor_provider, predict_idx, additional_fetch=None):

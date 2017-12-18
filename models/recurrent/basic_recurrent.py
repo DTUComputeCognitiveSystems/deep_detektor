@@ -134,7 +134,7 @@ class BasicRecurrent(DetektorModel):
                     empty_folder(tensorboard_path)
                     self._summary_train_writer = tf.summary.FileWriter(str(tensorboard_path), self._sess.graph)
 
-    def fit(self, tensor_provider, train_idx, verbose=0):
+    def _fit(self, tensor_provider, train_idx, y, verbose=0):
         """
         :param TensorProvider tensor_provider:
         :param list train_idx:
@@ -163,7 +163,6 @@ class BasicRecurrent(DetektorModel):
                                                                  word_embedding=self.use_word_embedding,
                                                                  char_embedding=self.use_char_embedding,
                                                                  pos_tags=self.use_pos_tags)
-        output_truth = tensor_provider.load_labels(data_keys_or_idx=train_idx)
         input_lengths = tensor_provider.load_data_tensors(data_keys_or_idx=train_idx, word_counts=True)["word_counts"]
         train_idx = list(range(len(train_idx)))
 
@@ -178,11 +177,11 @@ class BasicRecurrent(DetektorModel):
 
         # Calc sample probability based on class-size
         # TODO: Move this to own function and implement a "batch_strategy" input
-        non_claim_if = 1.0 / sum(output_truth == 0)
-        claim_if = 1.0 / sum(output_truth == 1)
+        non_claim_if = 1.0 / sum(y == 0)
+        claim_if = 1.0 / sum(y == 1)
         sample_weights = np.empty((len(train_idx)))
-        sample_weights[output_truth == 0] = non_claim_if
-        sample_weights[output_truth == 1] = claim_if
+        sample_weights[y == 0] = non_claim_if
+        sample_weights[y == 1] = claim_if
         sample_weights = sample_weights / sum(sample_weights)  # normalize to yield probabilities
 
         # Run training batches
@@ -197,7 +196,7 @@ class BasicRecurrent(DetektorModel):
             c_indices = np.random.choice(train_idx, self.batch_size, replace=False,
                                          p=sample_weights)
             c_inputs = input_tensor[c_indices, :, :]
-            c_truth = output_truth[c_indices]
+            c_truth = y[c_indices]
             c_input_lengths = input_lengths[c_indices]
 
             # Feeds

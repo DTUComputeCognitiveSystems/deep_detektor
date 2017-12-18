@@ -3,6 +3,7 @@ from util.tensor_provider import TensorProvider
 from models.model_base import DetektorModel
 from sklearn.svm import SVC
 
+
 class SVMSK(DetektorModel):
     @classmethod
     def name(cls):
@@ -31,7 +32,7 @@ class SVMSK(DetektorModel):
                                                              embedding_sum=self.use_embedsum)
         self.model = SVC(verbose=self.verbose, probability=True)
 
-    def fit(self, tensor_provider, train_idx, verbose=0):
+    def _fit(self, tensor_provider, train_idx, y, verbose=0):
         if verbose:
             print(verbose * " " + "Fitting {}".format(self.name()))
             verbose += 2
@@ -44,9 +45,6 @@ class SVMSK(DetektorModel):
         # Fetch data
         if not isinstance(x, np.ndarray):
             x = x.todense()
-
-        # Load labels
-        y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
 
         # Training cycle
         self.model.fit(x, y)
@@ -70,7 +68,7 @@ class SVMSK(DetektorModel):
     def summary_to_string(self):
         result_str = ""
         result_str += self.name() + "\n"
-        result_str += "Num input features: %i\n" % self.num_features
+        result_str += "Num input features: %s\n" % self.num_features
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum
         return result_str
