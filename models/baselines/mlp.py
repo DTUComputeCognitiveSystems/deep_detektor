@@ -21,7 +21,7 @@ class MLP(DetektorModel):
         :param int training_epochs:
         :param bool verbose:
         """
-        super().__init__(results_path, tf_save=True)
+        super().__init__(results_path, save_type="tf")
 
         # Settings
         self.display_step = display_step

@@ -23,7 +23,7 @@ class LogisticRegression(DetektorModel):
         :param int training_epochs:
         :param bool verbose:
         """
-        super().__init__(results_path, tf_save=True)
+        super().__init__(results_path, save_type="tf")
 
         # Settings
         self.display_step = display_step
@@ -145,20 +145,20 @@ class LogisticRegression(DetektorModel):
         return result_str
 
 
-
 class LogisticRegressionSK(DetektorModel):
     @classmethod
     def name(cls):
         return "LogisticRegressionSKLEARN"
 
-    def __init__(self, tensor_provider, use_bow=True, use_embedsum=False, display_step=1, verbose=False):
+    def __init__(self, tensor_provider, use_bow=True, use_embedsum=False, display_step=1, verbose=False,
+                 results_path=None):
         """
         :param TensorProvider tensor_provider:
         :param float learning_rate:
         :param int training_epochs:
         :param bool verbose:
         """
-        super().__init__(None)
+        super().__init__(results_path=results_path, save_type="sk")
 
         # Settings
         self.display_step = display_step

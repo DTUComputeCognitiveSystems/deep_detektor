@@ -13,9 +13,9 @@ from pathlib import Path
 
 
 class BasicRecurrent(DetektorModel):
-    def __init__(self, tensor_provider, recurrent_units=150, linear_units=(100, 40),
+    def __init__(self, tensor_provider, recurrent_units=20, linear_units=(10, 4),
                  word_embedding=True, pos_tags=True, char_embedding=True,
-                 n_batches=6000, batch_size=64,
+                 n_batches=10, batch_size=64,
                  display_step=1, results_path=None, progressive_learning_rate=False,
                  optimizer_class=tf.train.RMSPropOptimizer,
                  recurrent_neuron_type=tf.nn.rnn_cell.LSTMCell):
@@ -30,7 +30,7 @@ class BasicRecurrent(DetektorModel):
         :param int batch_size:
         :param int display_step:
         """
-        super().__init__(results_path, tf_save=True)
+        super().__init__(results_path, save_type="tf")
 
         # For training
         self.n_batches = n_batches
@@ -248,7 +248,7 @@ class BasicRecurrent(DetektorModel):
                     else:
                         print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}."
 
-                    time_label = "{}, {:7f}s : ".format(datetime.now().strftime("%H:%M:%S"),
+                    time_label = "{}, {:7.2f}s : ".format(datetime.now().strftime("%H:%M:%S"),
                                                                 time() - start_time)
                     print(time_label + print_formatter
                           .format(batch_nr + 1,
