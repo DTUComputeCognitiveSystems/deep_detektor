@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 from util.tensor_provider import TensorProvider
-from util.learning_rate_utilities import linear_geometric_curve, primary_secondary_plot
+from util.learning_rate_utilities import primary_secondary_plot
 from util.utilities import save_fig, empty_folder
 from pathlib import Path
 
@@ -16,7 +16,7 @@ class BasicRecurrent(DetektorModel):
     def __init__(self, tensor_provider, recurrent_units=20, linear_units=(10, 4),
                  word_embedding=True, pos_tags=True, char_embedding=True,
                  n_batches=10, batch_size=64,
-                 display_step=1, results_path=None, progressive_learning_rate=False,
+                 display_step=1, results_path=None, learning_rate_progression=1e-3,
                  optimizer_class=tf.train.RMSPropOptimizer,
                  recurrent_neuron_type=tf.nn.rnn_cell.LSTMCell):
         """
@@ -29,6 +29,9 @@ class BasicRecurrent(DetektorModel):
         :param int n_batches:
         :param int batch_size:
         :param int display_step:
+        :param float | list | np.ndarray learning_rate_progression:
+            float: The learning rate.
+            list | np.ndarray: Progressive learning rate. Must have len(learning_rate_progression) == n_batches
         """
 
         # For training
@@ -37,7 +40,7 @@ class BasicRecurrent(DetektorModel):
         self.display_step = display_step
 
         # Settings
-        self.progressive_learning_rate = progressive_learning_rate
+        self.learning_rate_progression = learning_rate_progression
         self.use_char_embedding = char_embedding
         self.use_pos_tags = pos_tags
         self.use_word_embedding = word_embedding
@@ -169,13 +172,10 @@ class BasicRecurrent(DetektorModel):
         train_idx = list(range(len(train_idx)))
 
         # Make learning rates
-        learning_rates = linear_geometric_curve(n=self.n_batches,
-                                                starting_value=1e-7,
-                                                end_value=1e-18,
-                                                geometric_component=3. / 4,
-                                                geometric_end=5)
-        if not self.progressive_learning_rate:
-            learning_rates[0] = 1e-3
+        if isinstance(self.learning_rate_progression, float):
+            learning_rates = [self.learning_rate_progression] * (self.n_batches + 1)
+        else:
+            learning_rates = self.learning_rate_progression
 
         # Calc sample probability based on class-size
         # TODO: Move this to own function and implement a "batch_strategy" input
@@ -189,11 +189,9 @@ class BasicRecurrent(DetektorModel):
         # Run training batches
         costs = []
         batches = []
-        c_learning_rate = learning_rates[0]
         start_time = time()
         for batch_nr in range(self.n_batches):
-            if self.progressive_learning_rate:
-                c_learning_rate = learning_rates[batch_nr]
+            c_learning_rate = learning_rates[batch_nr]
 
             c_indices = np.random.choice(train_idx, self.batch_size, replace=False,
                                          p=sample_weights)
@@ -244,10 +242,10 @@ class BasicRecurrent(DetektorModel):
                 # Print validation
                 if (batch_nr + 1) % self.display_step == 0 and verbose:
                     print(verbose * " ", end="")
-                    if self.progressive_learning_rate:
-                        print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}. learning_rate = {:.2e}"
-                    else:
+                    if isinstance(self.learning_rate_progression, float):
                         print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}."
+                    else:
+                        print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}. learning_rate = {:.2e}"
 
                     time_label = "{}, {:7.2f}s : ".format(datetime.now().strftime("%H:%M:%S"),
                                                                 time() - start_time)

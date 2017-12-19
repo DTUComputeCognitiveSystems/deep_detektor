@@ -88,7 +88,7 @@ class DetektorModel:
     def autosummary_str(self):
         summary_str = self.name()
         for key in sorted(self._auto_summary_keys):
-            summary_str += "\n\t{} : {}".format(key, getattr(self, key))
+            summary_str += "\n    {} : {}".format(key, getattr(self, key))
         return summary_str
 
     def save_model(self):
