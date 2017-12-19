@@ -1,5 +1,6 @@
 import numpy as np
 import sqlite3
+from pathlib import Path
 
 
 def _detect_column_type(type_set):
@@ -74,6 +75,25 @@ def _create_insert_command(table_name, column_headers, ):
 
 def rows2sql_table(data, database_path, table_name=None, column_headers=None, primary_key=None,
                    data_is_columns=False):
+    """
+    Creates a table with some data in an sqlite-database.
+    If the database does not exist then it is created.
+    If the table already exists then it is overwritten.
+
+    :param list[list] data: The data itself can be all kinds of stuff as long as the elements are packed into a list of lists.
+        If data_is_columns == False (default) then data should be a list of rows.
+        If data_is_columns == True then data should be a list of columns.
+    :param Path database_path: Location to put database.
+    :param str table_name: Name of table (default is 'data_table').
+        FYI 'table' is not allowed as it is a keyword in sql.
+    :param list[str] column_headers: The headers of the columns in the database.
+        Defaults to 'column_0', 'column_1', etc.
+    :param str | int | list[int|str] primary_key: Assigns a primary key to one or some of the columns.
+        str: Use the column of this name as primary key.
+        int: Use this column number as primary key.
+        list: Use this combination of columns as primary key, where each column is fetched wither by name or number.
+    :param bool data_is_columns: Determines whether the input data is a list of rows or a list of columns. 
+    """
     # Get columns or rows depending on input format
     if data_is_columns:
         columns = data
