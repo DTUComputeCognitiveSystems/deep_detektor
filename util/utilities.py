@@ -114,24 +114,41 @@ def get_next_bacth(data, labels, batch_size=None, strategy="weighted_sampling"):
     return data_batch, labels_batch
 
 
+class _STDOutRedirector:
+
+    def __init__(self, stream, path: Path):
+        if isinstance(stream, _STDOutRedirector):
+            raise ValueError("A _STDOutRedirector received another _STDOutRedirector as "
+                             "stream (this should not happen)")
+
+        self.stream = stream
+        self.file = path.open("w")
+
+    def write(self, data):
+        self.stream.write(data)
+        self.stream.flush()
+        self.file.write(data)
+        self.file.flush()
+
+    def flush(self):
+        self.stream.flush()
+
+    def close(self):
+        self.file.close()
+        sys.stdout = self.stream
+        del self
+
+
+def close_stdout_file():
+    if isinstance(sys.stdout, _STDOutRedirector):
+        sys.stdout.close()
+
+
 def redirect_stdout_to_file(path):
     """
     Redirects the stdout to both the console and to a file (experimental).
     :param Path path: Path to log-file.
     """
-    class Unbuffered:
 
-        def __init__(self, stream, path: Path):
-            self.stream = stream
-            self.file = path.open("w")
-
-        def write(self, data):
-            self.stream.write(data)
-            self.stream.flush()
-            self.file.write(data)
-            self.file.flush()
-
-        def flush(self):
-            self.stream.flush()
-
-    sys.stdout = Unbuffered(sys.stdout, path)
+    if not isinstance(sys.stdout, _STDOutRedirector):
+        sys.stdout = _STDOutRedirector(sys.stdout, path)
