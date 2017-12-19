@@ -14,6 +14,7 @@ from models.baselines import LogisticRegressionSK
 from project_paths import ProjectPaths
 from util.tensor_provider import TensorProvider
 from util.utilities import ensure_folder, redirect_stdout_to_file, save_fig
+from util.sql_utilities import rows2sql_table
 
 # Initialize tensor-provider (data-source)
 the_tensor_provider = TensorProvider(verbose=True)
@@ -24,14 +25,18 @@ the_tensor_provider = TensorProvider(verbose=True)
 # Make a model
 model = LogisticRegressionSK(
     tensor_provider=the_tensor_provider,
-    use_bow=True, use_embedsum=True,
+    use_bow=True,
+    use_embedsum=True,
+    tol=1e-1,
+    max_iter=5,
+    verbose=True
 )
 
 # How confident should we be to include negatives?
 reliable_negative_threshold = 0.99
 
 # Number of iterations for program
-n_iterations = 20
+n_iterations = 2
 
 # Path for results
 results_path = Path(ProjectPaths.results, "pu_learning_{}".format(model.name()))
@@ -159,27 +164,12 @@ for iteration_nr in range(n_iterations):
 # Save final model
 model.save_model()
 
-##################
-# Make database
+# Path for database with results
 database_path = Path(results_path, "pu_learning_label_progression.db")
-connection = sqlite3.connect(str(database_path))
-cursor = connection.cursor()
+
 
 ##################
 # Store label-history as database
-
-# Make table
-labels_command = "".join(["label_{} INTEGER NOT NULL,".format(idx) for idx in range(n_iterations + 1)])
-command = (
-        "CREATE TABLE labels ("
-        "program_id INTEGER NOT NULL,"
-        "sentence_id INTEGER NOT NULL,"
-        "sentence TEXT NOT NULL," +
-        labels_command +
-        "PRIMARY KEY (program_id, sentence_id)"
-        ")"
-)
-cursor.execute(command)
 
 # Make data for database
 data = [
@@ -187,29 +177,19 @@ data = [
     for key, sentence in zip(all_keys, sentences)
 ]
 
-# Insert information
-labels_command = ",".join(["label_{}".format(idx) for idx in range(n_iterations + 1)])
-command = "INSERT INTO labels (program_id, sentence_id, sentence, {}) VALUES ({})" \
-    .format(labels_command, ",".join(["?" for val in range(4 + n_iterations)]))
-cursor.executemany(command, data)
-connection.commit()
+# Insert into table
+rows2sql_table(
+    data=data,
+    database_path=database_path,
+    table_name="labels",
+    column_headers=["program_id", "sentence_id", "sentence",
+                    *["label_{}".format(val) for val in range(n_iterations + 1)]],
+    primary_key=[0, 1]
+)
 
 
 ##################
 # Store label-confidence-history as database (identical to above but with confidences)
-
-# Make table
-confidences_command = "".join(["confidence_{} REAL NOT NULL,".format(idx) for idx in range(n_iterations + 1)])
-command = (
-        "CREATE TABLE confidences ("
-        "program_id INTEGER NOT NULL,"
-        "sentence_id INTEGER NOT NULL,"
-        "sentence TEXT NOT NULL," +
-        confidences_command +
-        "PRIMARY KEY (program_id, sentence_id)"
-        ")"
-)
-cursor.execute(command)
 
 # Make data for database
 data = [
@@ -217,28 +197,19 @@ data = [
     for key, sentence in zip(all_keys, sentences)
 ]
 
-# Insert information
-confidences_command = ",".join(["confidence_{}".format(idx) for idx in range(n_iterations + 1)])
-command = "INSERT INTO confidences (program_id, sentence_id, sentence, {}) VALUES ({})" \
-    .format(confidences_command, ",".join(["?" for val in range(4 + n_iterations)]))
-cursor.executemany(command, data)
-connection.commit()
+# Insert into table
+rows2sql_table(
+    data=data,
+    database_path=database_path,
+    table_name="confidences",
+    column_headers=["program_id", "sentence_id", "sentence",
+                    *["confidence_{}".format(val) for val in range(n_iterations + 1)]],
+    primary_key=[0, 1]
+)
 
 
 ##################
 # Store reliable negatives, positives and unlabelled samples to database
-
-# Make table
-command = (
-        "CREATE TABLE final_labels ("
-        "program_id INTEGER NOT NULL,"
-        "sentence_id INTEGER NOT NULL,"
-        "sentence TEXT NOT NULL,"
-        "label TEXT NOT NULL,"
-        "PRIMARY KEY (program_id, sentence_id)"
-        ")"
-)
-cursor.execute(command)
 
 # Make data for database
 data = []
@@ -252,16 +223,15 @@ for key, sentence in zip(all_keys, sentences):
 
     data.append((key[0], key[1], sentence, label))
 
-# Insert information
-command = "INSERT INTO final_labels (program_id, sentence_id, sentence, label) VALUES (?, ?, ?, ?)"
-cursor.executemany(command, data)
-connection.commit()
+# Insert into table
+rows2sql_table(
+    data=data,
+    database_path=database_path,
+    table_name="final_labels",
+    column_headers=["program_id", "sentence_id", "sentence", "label"],
+    primary_key=[0, 1]
+)
 
-
-##################
-# Close database
-cursor.close()
-connection.close()
 
 ##################
 # Plot history

@@ -80,7 +80,8 @@ def rows2sql_table(data, database_path, table_name=None, column_headers=None, pr
     If the database does not exist then it is created.
     If the table already exists then it is overwritten.
 
-    :param list[list] data: The data itself can be all kinds of stuff as long as the elements are packed into a list of lists.
+    :param list[list|tuple] data: The data itself can be all kinds of stuff as long as
+            the elements are packed into a list of lists or tuples.
         If data_is_columns == False (default) then data should be a list of rows.
         If data_is_columns == True then data should be a list of columns.
     :param Path database_path: Location to put database.
@@ -92,7 +93,7 @@ def rows2sql_table(data, database_path, table_name=None, column_headers=None, pr
         str: Use the column of this name as primary key.
         int: Use this column number as primary key.
         list: Use this combination of columns as primary key, where each column is fetched wither by name or number.
-    :param bool data_is_columns: Determines whether the input data is a list of rows or a list of columns. 
+    :param bool data_is_columns: Determines whether the input data is a list of rows or a list of columns.
     """
     # Get columns or rows depending on input format
     if data_is_columns:
