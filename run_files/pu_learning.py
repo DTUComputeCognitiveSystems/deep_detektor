@@ -1,20 +1,17 @@
-import shutil
-import sqlite3
-from pathlib import Path
 import json
-import pickle
-
-import numpy as np
-
+import shutil
 from collections import defaultdict
+from pathlib import Path
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 from evaluations import Accuracy, F1, AreaUnderROC
 from models.baselines import LogisticRegressionSK
 from project_paths import ProjectPaths
+from util.sql_utilities import rows2sql_table
 from util.tensor_provider import TensorProvider
 from util.utilities import ensure_folder, redirect_stdout_to_file, save_fig
-from util.sql_utilities import rows2sql_table
 
 # Initialize tensor-provider (data-source)
 the_tensor_provider = TensorProvider(verbose=True)
@@ -273,4 +270,3 @@ ax.set_yscale("log", nonposy='clip')
 
 # Save log-version
 save_fig(Path(results_path, "aggregated_label_history_log"), only_pdf=True)
-
