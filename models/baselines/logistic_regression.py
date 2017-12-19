@@ -148,7 +148,7 @@ class LogisticRegressionSK(DetektorModel):
         return "LogisticRegressionSKLEARN"
 
     def __init__(self, tensor_provider, use_bow=True, use_embedsum=False, display_step=1, verbose=False,
-                 results_path=None):
+                 results_path=None, penalty="l2", tol=1e-4, C=1.0, max_iter=100):
         """
         :param TensorProvider tensor_provider:
         :param float learning_rate:
@@ -163,6 +163,12 @@ class LogisticRegressionSK(DetektorModel):
         self.use_bow = use_bow
         self.use_embedsum = use_embedsum
 
+        # Training settings
+        self.penalty = penalty
+        self.tol = tol
+        self.C = C
+        self.max_iter = max_iter
+
         self.num_features = None  # type: int
         self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = self.model \
             = None
@@ -171,7 +177,12 @@ class LogisticRegressionSK(DetektorModel):
         # Get number of features
         self.num_features = tensor_provider.input_dimensions(bow=self.use_bow,
                                                              embedding_sum=self.use_embedsum)
-        self.model = LogRegSK(verbose=self.verbose)
+        self.model = LogRegSK(verbose=self.verbose,
+                              penalty=self.penalty,
+                              tol=self.tol,
+                              C=self.C,
+                              max_iter=self.max_iter,
+                              )
 
     def _fit(self, tensor_provider, train_idx, y, verbose=0):
         if verbose:
@@ -188,7 +199,7 @@ class LogisticRegressionSK(DetektorModel):
             x = x.todense()
 
         # Training cycle
-        self.model.fit(x,y)
+        self.model.fit(x, y)
 
         if verbose:
             print(verbose * " " + "Optimization Finished!")
