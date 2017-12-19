@@ -173,7 +173,7 @@ class BasicRecurrent(DetektorModel):
 
         # Make learning rates
         if isinstance(self.learning_rate_progression, float):
-            learning_rates = [self.learning_rate_progression] * (self.n_batches + 1)
+            learning_rates = [self.learning_rate_progression] * self.n_batches
         else:
             learning_rates = self.learning_rate_progression
 
@@ -193,7 +193,9 @@ class BasicRecurrent(DetektorModel):
         for batch_nr in range(self.n_batches):
             c_learning_rate = learning_rates[batch_nr]
 
-            c_indices = np.random.choice(train_idx, self.batch_size, replace=False,
+            c_indices = np.random.choice(train_idx,
+                                         self.batch_size,
+                                         replace=False,
                                          p=sample_weights)
             c_inputs = input_tensor[c_indices, :, :]
             c_truth = y[c_indices]
