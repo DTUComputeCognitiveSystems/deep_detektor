@@ -30,7 +30,6 @@ class BasicRecurrent(DetektorModel):
         :param int batch_size:
         :param int display_step:
         """
-        super().__init__(results_path, save_type="tf")
 
         # For training
         self.n_batches = n_batches
@@ -46,6 +45,9 @@ class BasicRecurrent(DetektorModel):
         self.recurrent_units = recurrent_units
         self.optimizer_class = optimizer_class
         self.recurrent_neuron_type = recurrent_neuron_type
+
+        # Initialize super (and make automatic settings-summary)
+        super().__init__(results_path, save_type="tf")
 
         # Uninitialized fields
         self.num_features = self.inputs = self.input_lengths = self.truth = self._rec_cell = self.rec_cell_outputs = \

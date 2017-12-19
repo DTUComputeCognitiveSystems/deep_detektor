@@ -22,7 +22,6 @@ class LogisticRegression(DetektorModel):
         :param int training_epochs:
         :param bool verbose:
         """
-        super().__init__(results_path, save_type="tf")
 
         # Settings
         self.display_step = display_step
@@ -35,6 +34,10 @@ class LogisticRegression(DetektorModel):
         self.batch_strategy = batch_strategy
 
         self.num_features = None  # type: int
+
+        # Initialize super (and make automatic settings-summary)
+        super().__init__(results_path, save_type="tf")
+
         self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = None
 
     def initialize_model(self, tensor_provider):
@@ -155,7 +158,6 @@ class LogisticRegressionSK(DetektorModel):
         :param int training_epochs:
         :param bool verbose:
         """
-        super().__init__(results_path=results_path, save_type="sk")
 
         # Settings
         self.display_step = display_step
@@ -170,6 +172,10 @@ class LogisticRegressionSK(DetektorModel):
         self.max_iter = max_iter
 
         self.num_features = None  # type: int
+
+        # Initialize super (and make automatic settings-summary)
+        super().__init__(results_path=results_path, save_type="sk")
+
         self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = self.model \
             = None
 
@@ -223,4 +229,8 @@ class LogisticRegressionSK(DetektorModel):
         result_str += "Num input features: %s\n" % self.num_features
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum
+        result_str += "Penalty: {} \n".format(self.penalty)
+        result_str += "Tolerance: {} \n".format(self.tol)
+        result_str += "C: {} \n".format(self.C)
+        result_str += "Max Iterations: {} \n".format(self.max_iter)
         return result_str

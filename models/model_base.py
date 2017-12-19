@@ -11,12 +11,16 @@ from util.utilities import ensure_folder
 
 
 class DetektorModel:
-    def __init__(self, results_path, save_type=None):
+    def __init__(self, results_path, save_type=None, summary_ignore=set()):
         # Make graph and session
         self._tf_graph = tf.Graph()
         self._sess = tf.Session(graph=self._tf_graph)
         self.save_type = save_type
         self.model = None
+        self._auto_summary_keys = None
+
+        # Create automatic summary dictionary
+        self._create_autosummary_dict(summary_ignore)
 
         # Set path
         if results_path is not None:
@@ -68,6 +72,25 @@ class DetektorModel:
 
         return ""
 
+    def _create_autosummary_dict(self, summary_ignore):
+
+        # Ignore fields
+        not_allowed = {"self", "tensor_provider", "not_allowed", "save_type", "model"}
+        not_allowed.update(summary_ignore)
+
+        # Fetch keys for summary
+        autosummary = [key for key in self.__dict__.keys()
+                       if not key.startswith("_") and key not in not_allowed]
+
+        # Remember
+        self._auto_summary_keys = autosummary
+
+    def autosummary_str(self):
+        summary_str = self.name()
+        for key in sorted(self._auto_summary_keys):
+            summary_str += "\n\t{} : {}".format(key, getattr(self, key))
+        return summary_str
+
     def save_model(self):
         if self.results_path is not None:
             if self.save_type == "tf":
@@ -75,7 +98,6 @@ class DetektorModel:
 
                 # Use model's graph
                 with self._tf_graph.as_default():
-
                     # Complete path
                     checkpoint_path = Path(self.results_path, "Checkpoint", 'model.checkpoint')
 
@@ -92,7 +114,6 @@ class DetektorModel:
 
     def load_model(self, results_path):
         if self.save_type == "tf":
-
             # Use model's graph
             with self._tf_graph.as_default():
                 # Complete path

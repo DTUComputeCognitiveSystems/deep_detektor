@@ -16,7 +16,6 @@ class SVMSK(DetektorModel):
         :param int training_epochs:
         :param bool verbose:
         """
-        super().__init__(None)
 
         # Settings
         self.display_step = display_step
@@ -24,7 +23,12 @@ class SVMSK(DetektorModel):
         self.use_bow = use_bow
         self.use_embedsum = use_embedsum
 
-        self.num_features = self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = None
+        self.num_features = None
+
+        # Initialize super (and make automatic settings-summary)
+        super().__init__(None)
+
+        self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = None
 
     def initialize_model(self, tensor_provider):
         # Get number of features

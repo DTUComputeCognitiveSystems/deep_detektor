@@ -21,7 +21,6 @@ class MLP(DetektorModel):
         :param int training_epochs:
         :param bool verbose:
         """
-        super().__init__(results_path, save_type="tf")
 
         # Settings
         self.display_step = display_step
@@ -34,6 +33,9 @@ class MLP(DetektorModel):
         self.use_embedsum = use_embedsum
         self.batch_size = batch_size
         self.batch_strategy = batch_strategy
+
+        # Initialize super (and make automatic settings-summary)
+        super().__init__(results_path, save_type="tf")
 
         self.num_features = self.x = self.y = self.Wxz = self.bz = self.Wzy = self.by = self.z = self.pred = \
             self.cost = self.optimizer = None
@@ -140,6 +142,7 @@ class MLP(DetektorModel):
         result_str += "Num training epochs: %i  \n" % self.training_epochs
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum
+        result_str += "Batch sttrategy: {} \n".format(self.batch_strategy)
         if self.batch_size is not None:
             result_str += "Batch Size: %i \n" % self.batch_size
         return result_str
