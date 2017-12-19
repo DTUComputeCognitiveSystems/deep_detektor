@@ -20,12 +20,12 @@ def _detect_none(column):
 
 
 def _create_primary_key(primary_key, column_headers):
-    # If primary keys in None then set to first column
+    # If primary keys in None then no key
     if primary_key is None:
-        primary_key = column_headers[0]
+        primary_key = ""
 
     # If the the primary key is a string, then make a parenthesis around it
-    if isinstance(primary_key, str):
+    elif isinstance(primary_key, str):
         primary_key = "({})".format(primary_key)
 
     # Of Otherwise check for alternative methods
@@ -49,16 +49,20 @@ def _create_primary_key(primary_key, column_headers):
         else:
             raise ValueError("Argument 'primary_key' can not be of type {}".format(type(primary_key).__name__))
 
+    # Make final command-snippet
+    if primary_key:
+        primary_key = ",\n\tPRIMARY KEY {}".format(primary_key)
+
     return primary_key
 
 
 def _create_create_command(column_headers, type_strs, none_strs, table_name, primary_key):
     column_specs = ",\n\t".join(["{} {}{}".format(c_name, c_type, c_none_assign)
-                                 for c_name, c_type, c_none_assign in zip(column_headers, type_strs, none_strs)]) + ","
+                                 for c_name, c_type, c_none_assign in zip(column_headers, type_strs, none_strs)])
     create_command = (
-            "CREATE TABLE {} (\n\t".format(table_name) +
+            "CREATE TABLE IF NOT EXISTS {} (\n\t".format(table_name) +
             column_specs +
-            "\n\tPRIMARY KEY {}".format(primary_key) +
+            "{}".format(primary_key) +
             "\n)"
     )
 
@@ -74,27 +78,33 @@ def _create_insert_command(table_name, column_headers, ):
 
 
 def rows2sql_table(data, database_path, table_name=None, column_headers=None, primary_key=None,
-                   data_is_columns=False):
+                   data_is_columns=False, append=False):
     """
     Creates a table with some data in an sqlite-database.
     If the database does not exist then it is created.
-    If the table already exists then it is overwritten.
+    If the table already exists then it is either overwritten or the rows appended (depending on append).
 
     :param list[list|tuple] data: The data itself can be all kinds of stuff as long as
             the elements are packed into a list of lists or tuples.
         If data_is_columns == False (default) then data should be a list of rows.
         If data_is_columns == True then data should be a list of columns.
     :param Path database_path: Location to put database.
-    :param str table_name: Name of table (default is 'data_table').
+    :param str | None table_name: Name of table (default is 'data_table').
         FYI 'table' is not allowed as it is a keyword in sql.
-    :param list[str] column_headers: The headers of the columns in the database.
+    :param list[str] | None column_headers: The headers of the columns in the database.
         Defaults to 'column_0', 'column_1', etc.
-    :param str | int | list[int|str] primary_key: Assigns a primary key to one or some of the columns.
+    :param str | int | list[int|str] | None primary_key: Assigns a primary key to one or some of the columns.
+        None: No primary key.
         str: Use the column of this name as primary key.
         int: Use this column number as primary key.
         list: Use this combination of columns as primary key, where each column is fetched wither by name or number.
     :param bool data_is_columns: Determines whether the input data is a list of rows or a list of columns.
+    :param bool append:
+        False: Overwrite table if exists.
+        True: Append rows if exist (crash if table specifications do not match).
     """
+    # TODO: Make a 'none_strs' list argument. True allows NULL, False does not and None is default (as they are now).
+    # TODO: If appending rows, attempt to pad with NULL for the columns not specified (crash if database does not allow)
     # Get columns or rows depending on input format
     if data_is_columns:
         columns = data
@@ -136,7 +146,8 @@ def rows2sql_table(data, database_path, table_name=None, column_headers=None, pr
 
     try:
         # Ensure table is not already there (overwrite anything in the way)
-        cursor.execute("DROP TABLE IF EXISTS {}".format(table_name))
+        if not append:
+            cursor.execute("DROP TABLE IF EXISTS {}".format(table_name))
 
         # Create table
         cursor.execute(create_command)

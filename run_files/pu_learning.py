@@ -24,8 +24,8 @@ model = LogisticRegressionSK(
     tensor_provider=the_tensor_provider,
     use_bow=True,
     use_embedsum=True,
-    tol=1e-1,
-    max_iter=5,
+    tol=1e-8,
+    max_iter=300,
     verbose=True
 )
 
@@ -33,7 +33,7 @@ model = LogisticRegressionSK(
 reliable_negative_threshold = 0.99
 
 # Number of iterations for program
-n_iterations = 2
+n_iterations = 20
 
 # Path for results
 results_path = Path(ProjectPaths.results, "pu_learning_{}".format(model.name()))
@@ -90,7 +90,7 @@ c_labels = labels
 
 print("\nRunning Positive-Unlabelled Learning.")
 for iteration_nr in range(n_iterations):
-    print("\tIteration {}".format(iteration_nr))
+    print("\tIteration {} / {}".format(iteration_nr, n_iterations))
     print("\t\tStats:")
     print("\t\t\tTraining with {} samples".format(len(c_keys)))
     print("\t\t\tPositives: {}".format(len([val for val in c_labels if val])))
@@ -107,6 +107,7 @@ for iteration_nr in range(n_iterations):
     model.fit(tensor_provider=the_tensor_provider,
               train_idx=c_keys,
               y=c_labels)
+    print("")
 
     # Run on training data
     print("\t\tRunning on training data")
