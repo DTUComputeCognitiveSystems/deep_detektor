@@ -1,5 +1,6 @@
 import shutil
 from pathlib import Path
+import pickle
 
 import numpy as np
 import xarray as xr
@@ -19,7 +20,8 @@ from datetime import datetime
 
 
 def single_training(tensor_provider, model,
-                    test_programs, base_path, eval_functions=None, return_predictions=False):
+                    test_programs, training_programs,
+                    base_path, eval_functions=None, return_predictions=False):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param DetektorModel model: Model-class to train and test.
@@ -67,21 +69,24 @@ def single_training(tensor_provider, model,
                                                coords=dict(Evaluation=evaluation_names,
                                                            Model=[model.name]))
 
-    # Get split indices
-    test_idx = 0
-    for test_program in test_programs:
-        test_idx = test_idx + (program_ids == test_program)
-    train_idx = np.where(test_idx < 0.5)[0]
+    # Get test-indices
+    test_idx = np.sum([program_ids == val for val in test_programs], axis=0)
     test_idx = np.where(test_idx > 0.5)[0]
+
+    # Get test-indices
+    train_idx = np.sum([program_ids == val for val in training_programs], axis=0)
+    train_idx = np.where(train_idx > 0.5)[0]
+
+    assert not set(test_idx).intersection(set(train_idx)), "Overlap between training and test set."
+
+    # Convert to keys
+    train_idx = [keys[val] for val in train_idx]
+    test_idx = [keys[val] for val in test_idx]
 
     # Report
     print("Test programs {}, using {} training samples and {} test samples.".format(test_programs,
                                                                                     len(train_idx),
                                                                                     len(test_idx)))
-
-    # Convert to keys
-    train_idx = [keys[val] for val in train_idx]
-    test_idx = [keys[val] for val in test_idx]
 
     # Make and set BoW-vocabulary
     bow_vocabulary = tensor_provider.extract_programs_vocabulary(train_idx)
@@ -176,10 +181,17 @@ def single_training(tensor_provider, model,
     results_train = classification_results_train._to_dataset_split("Model").to_dataframe()
     results_test = classification_results_test._to_dataset_split("Model").to_dataframe()
     with Path(results_path, "results.txt").open("w") as file:
-        file.write(model_summary)
-        file.write(str(results_train))
-        file.write(str(results_test))
+        file.write(model_summary + "\n\n")
+        print("Training\n")
+        file.write(str(results_train) + "\n\n")
+        print("Test\n")
+        file.write(str(results_test) + "\n\n")
 
+    # Store results
+    pickle.dump(results_train, Path(results_path, "results_train.p").open("wb"))
+    pickle.dump(results_test, Path(results_path, "results_test.p").open("wb"))
+
+    # Print results for each data-set
     print("\nSingle training Results - TRAINING \n" + "-" * 75)
     print(results_train)
     print("\nSingle training Results - TEST \n" + "-" * 75)
@@ -187,7 +199,7 @@ def single_training(tensor_provider, model,
     print("\nModel Summary \n" + "-" * 75)
     print(model_summary)
 
-    # Plot ROC if included
+    # Plot ROC of training
     roc_key = (a_model.name, "ROC")
     if roc_key in special_results_train:
         positive_rate, negative_rate = special_results_train[roc_key]
@@ -196,6 +208,7 @@ def single_training(tensor_provider, model,
                  title="{} ROC Training".format(a_model.name))
         save_fig(Path(results_path, "ROC_Train"))
 
+    # Plot ROC of test
     if roc_key in special_results_test:
         positive_rate, negative_rate = special_results_test[roc_key]
         plot_roc(tp_rate=positive_rate,
@@ -203,6 +216,7 @@ def single_training(tensor_provider, model,
                  title="{} ROC Test".format(a_model.name))
         save_fig(Path(results_path, "ROC_Test"))
 
+    # Print ending
     print("Script ended at: {}".format(datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
     close_stdout_file()
 
@@ -227,21 +241,21 @@ if __name__ == "__main__":
     #     n_jobs=-1
     # )
     n_test_programs = 2
-    n_batches = 2000
+    n_batches = 20
     learning_rates = linear_geometric_curve(n=n_batches,
                                             starting_value=1e-2,
                                             end_value=1e-8,
                                             geometric_component=3. / 4,
                                             geometric_end=5)
-    a_model = BasicRecurrent(
-        tensor_provider=the_tensor_provider,
-        results_path=base_path,
-        n_batches=n_batches,
-        recurrent_units=50,
-        linear_units=[],
-        learning_rate_progression=learning_rates,
-        name_formatter="{}_hey"
-    )
+    # a_model = BasicRecurrent(
+    #     tensor_provider=the_tensor_provider,
+    #     results_path=base_path,
+    #     n_batches=n_batches,
+    #     recurrent_units=50,
+    #     linear_units=[],
+    #     learning_rate_progression=learning_rates,
+    #     # name_formatter="{}_hey"
+    # )
     # a_model = LogisticRegression(
     #     tensor_provider=the_tensor_provider,
     # )
@@ -262,11 +276,13 @@ if __name__ == "__main__":
     # Select test-programs
     unique_programs = np.array(sorted(set(the_tensor_provider.accessible_annotated_program_ids)))
     used_test_programs = np.random.choice(unique_programs, size=n_test_programs, replace=False)
+    used_training_programs = np.array(sorted(set(unique_programs).difference(set(used_test_programs))))
 
     # Run training on a single model
     single_training(
             tensor_provider=the_tensor_provider,
             model=a_model,
             test_programs=used_test_programs,
+            training_programs=used_training_programs,
             base_path=base_path
         )

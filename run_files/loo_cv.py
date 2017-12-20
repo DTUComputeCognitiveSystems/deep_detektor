@@ -119,28 +119,27 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
 
             # Save the best ranked senteces (in terms of claim)
             if save_ranked_sentences:
-                rank_file.write("Test program: %s \n" %program_names[program_nr])
+                rank_file.write("Test program: %s \n" % program_names[program_nr])
                 rank_file.write(model.summary_to_string())
                 ranked_sentences, rank_score, rank_indices \
                     = tensor_provider.get_ranked_predictions(y_pred, test_idx)
                 rank_file.write("Sentence, Proability of claim, Truth \n")
                 ranked_labels = tensor_provider.load_labels(rank_indices)
                 for r in range(len(ranked_sentences)):
-                    rank_file.write("%s , %.5f, %i \n"%(ranked_sentences[r], rank_score[r], ranked_labels[r]) )
+                    rank_file.write("%s , %.5f, %i \n" % (ranked_sentences[r], rank_score[r], ranked_labels[r]))
                 rank_file.write("\n")
 
             # Save predictions on full test set
             if save_full_predictions:
-                with Path(path, "%s_predictions.txt"%program_names[program_nr]).open("w") as file:
+                with Path(path, "%s_predictions.txt" % program_names[program_nr]).open("w") as file:
                     all_sentences = tensor_provider.load_original_sentences(test_idx)
                     for r in range(len(all_sentences)):
-                        file.write("%i;%.5f;%s\n"%(y_true[r], y_pred[r], all_sentences[r]))
+                        file.write("%i;%.5f;%s\n" % (y_true[r], y_pred[r], all_sentences[r]))
 
             # Save model weights in case of logistic regression
-            if save_model_weights and model_name=="LogisticRegressionSKLEARN":
-                #TODO: Save most important weights in classification
+            if save_model_weights and model_name == "LogisticRegressionSKLEARN":
+                # TODO: Save most important weights in classification
                 print(' ')
-
 
             # Evaluate with eval_functions
             evaluation_nr = 0
@@ -156,8 +155,8 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
                     evaluation_nr += 1
                 else:
                     special_results[(model.name, evalf.name(), program_nr)] = evalf(y_true=y_true,
-                                                                                             y_pred=y_pred,
-                                                                                             y_pred_binary=y_pred_binary)
+                                                                                    y_pred=y_pred,
+                                                                                    y_pred_binary=y_pred_binary)
     ###
     # Plot ROC curves if wanted
 
@@ -213,15 +212,17 @@ if __name__ == "__main__":
     # Choose models
     models = [
         LogisticRegressionSK(tensor_provider=the_tensor_provider)
-        #MLP(tensor_provider=the_tensor_provider)
+        # MLP(tensor_provider=the_tensor_provider)
     ]
 
     # Run LOO-program
     loo_path = Path(ProjectPaths.results, "LOO_CV")
-    results, s_results = leave_one_program_out_cv(tensor_provider=the_tensor_provider,
-                                                  model_list=models,
-                                                  limit=program_limit,
-                                                  path=loo_path)  # type: xr.DataArray
+    results, s_results = leave_one_program_out_cv(
+        tensor_provider=the_tensor_provider,
+        model_list=models,
+        limit=program_limit,
+        path=loo_path
+    )  # type: xr.DataArray
 
     # Get mean-results over programs
     mean_results = results.mean("Program")
