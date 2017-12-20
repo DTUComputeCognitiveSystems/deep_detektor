@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 
 class PULogisticRegressionSK(DetektorModel):
     @classmethod
-    def name(cls):
-        return "PU LogisticRegression (Scikit-learn)"
+    def _class_name(cls):
+        return "PU_LogisticRegression_SK"
 
     def __init__(self, tensor_provider, use_bow=True, use_embedsum=False, display_step=1, verbose=False):
         """

@@ -183,15 +183,15 @@ if __name__ == "__main__":
                                             end_value=1e-8,
                                             geometric_component=3. / 4,
                                             geometric_end=5)
-    a_model = BasicRecurrent(
-        tensor_provider=the_tensor_provider,
-        results_path=results_path,
-        n_batches=n_batches,
-        recurrent_units=50,
-        linear_units=[],
-        learning_rate_progression=learning_rates,
-        name_formatter="{}_hey"
-    )
+    #a_model = BasicRecurrent(
+    #    tensor_provider=the_tensor_provider,
+    #    results_path=results_path,
+    #    n_batches=n_batches,
+    #    recurrent_units=50,
+    #    linear_units=[],
+    #    learning_rate_progression=learning_rates,
+    #    name_formatter="{}_hey"
+    #)
     # a_model = LogisticRegression(
     #     tensor_provider=the_tensor_provider,
     # )
@@ -205,12 +205,15 @@ if __name__ == "__main__":
     # a_model = LogisticRegressionSK(
     #      tensor_provider=the_tensor_provider,
     # )
+    a_model = PULogisticRegressionSK(
+         tensor_provider=the_tensor_provider,
+    )
 
     # Create model-specific path and ensure directory
     results_path = a_model.create_model_path(results_path=results_path)
-    shutil.rmtree(str(results_path))
-    ensure_folder(results_path)
-    redirect_stdout_to_file(Path(results_path, "log.txt"))
+    #shutil.rmtree(str(results_path))
+    #ensure_folder(results_path)
+#    redirect_stdout_to_file(Path(results_path, "log.txt"))
     print("Script starting at: {}".format(datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
 
     # Select test-programs
