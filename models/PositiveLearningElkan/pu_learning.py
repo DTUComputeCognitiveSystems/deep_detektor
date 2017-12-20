@@ -11,6 +11,7 @@ from math import ceil
 
 import matplotlib.pyplot as plt
 
+
 class PULogisticRegressionSK(DetektorModel):
     @classmethod
     def _class_name(cls):
@@ -37,20 +38,18 @@ class PULogisticRegressionSK(DetektorModel):
         # Get number of features
         self.num_features = tensor_provider.input_dimensions(bow=self.use_bow,
                                                              embedding_sum=self.use_embedsum)
-        #self.model = LogRegSK(verbose=self.verbose)
+        # self.model = LogRegSK(verbose=self.verbose)
         self.constant_c = 0.5
         self.model = SGDClassifier(loss='log', tol=1e-5)
 
-
-    def fit(self, tensor_provider, train_idx, verbose=0, test_size = 0.2):
+    def _fit(self, tensor_provider, train_idx, y, verbose=0, test_size=0.2):
         if verbose:
-            print(verbose * " " + "Fitting {}".format(self.name()))
+            print(verbose * " " + "Fitting {}".format(self.name))
             verbose += 2
 
         if test_size <= 0 or test_size >= 1:
             print('Error, test size has to be a value between 0 and 1')
             return
-
 
         # Get training data
         x = tensor_provider.load_concat_input_tensors(data_keys_or_idx=train_idx,
@@ -61,15 +60,11 @@ class PULogisticRegressionSK(DetektorModel):
         if not isinstance(x, np.ndarray):
             x = x.todense()
 
-        # Load labels
-        y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
-
         # Training cycle
-
 
         # 1. Train model to learn c = P(s=1|y=1)
         positive_idx = np.where(y == True)[0]
-        N_holdout = int(np.round(len(positive_idx)*test_size))
+        N_holdout = int(np.round(len(positive_idx) * test_size))
         perm_idx = np.random.permutation(positive_idx)
 
         positive_train_idx = np.ones([len(y), ]).astype(bool)
@@ -77,9 +72,9 @@ class PULogisticRegressionSK(DetektorModel):
         positive_val_idx = np.zeros([len(y), ]).astype(bool)
         positive_val_idx[perm_idx[:N_holdout]] = True
 
-        train_idx = (y==False) + positive_train_idx
+        train_idx = (y == False) + positive_train_idx
 
-        print('%i == %i'%(N_holdout, sum(positive_val_idx)))
+        print('%i == %i' % (N_holdout, sum(positive_val_idx)))
 
         self.model.fit(x[train_idx], y[train_idx])
         hold_out_predictions = self.model.predict_proba(x[positive_val_idx])
@@ -109,10 +104,6 @@ class PULogisticRegressionSK(DetektorModel):
         plt.figure()
         plt.hist(hold_out_predictions[:, 1], bins=20)
 
-
-
-
-
         if verbose:
             print(verbose * " " + "Optimization Finished!")
 
@@ -123,8 +114,8 @@ class PULogisticRegressionSK(DetektorModel):
 
         # Do prediction
         predictions = self.model.predict_proba(input_tensor)
-        predictions = predictions[:, 1] #/ self.constant_c
-        #predictions = (1-self.constant_c)/self.constant_c * \
+        predictions = predictions[:, 1]  # / self.constant_c
+        # predictions = (1-self.constant_c)/self.constant_c * \
         #              (predictions/(1-predictions))
 
         # Binary conversion
@@ -133,7 +124,7 @@ class PULogisticRegressionSK(DetektorModel):
 
     def summary_to_string(self):
         result_str = ""
-        result_str += self.name() + "\n"
+        result_str += self.name + "\n"
         result_str += "Num input features: %i\n" % self.num_features
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum

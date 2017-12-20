@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
+from models.PositiveLearningElkan.pu_learning import PULogisticRegressionSK
 from models.model_base import DetektorModel
 from project_paths import ProjectPaths
 from evaluations.area_roc import ROC, plot_roc
