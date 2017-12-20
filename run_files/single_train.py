@@ -12,17 +12,18 @@ from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositiv
     AreaUnderROC
 from models.recurrent.basic_recurrent import BasicRecurrent
 from models.PositiveLearningElkan.pu_learning import PULogisticRegressionSK
+from util.learning_rate_utilities import linear_geometric_curve
 from util.tensor_provider import TensorProvider
 from util.utilities import ensure_folder, save_fig, redirect_stdout_to_file, close_stdout_file
 from datetime import datetime
 
 
-def single_training(tensor_provider, model_class,
-                    n_test_programs=1, eval_functions=None, return_predictions=False):
+def single_training(tensor_provider, model,
+                    test_programs, eval_functions=None, return_predictions=False):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
-    :param DetektorModel model_class: Model-class to train and test.
-    :param int n_test_programs: Number of test-programs to use.
+    :param DetektorModel model: Model-class to train and test.
+    :param list test_programs: List of program IDs used for test-programs
     :param list[Evaluation] eval_functions: List of evaluation functions used to test models.
     :param bool return_predictions: If True, the method stores all model test-predictions and returns them as well.
                                     Can be used to determine whether errors are the same across models.
@@ -38,7 +39,6 @@ def single_training(tensor_provider, model_class,
 
     # Get program ids and number of programs
     program_ids = np.array(list(zip(*keys))[0])
-    unique_programs = np.array(sorted(set(program_ids)))
 
     # Initialize array for holding results
     special_results_train = dict()
@@ -48,17 +48,14 @@ def single_training(tensor_provider, model_class,
                                                 name="Training Results",
                                                 dims=["Model", "Evaluation"],
                                                 coords=dict(Evaluation=evaluation_names,
-                                                            Model=[model_class.name()]))
+                                                            Model=[model.name]))
     special_results_test = dict()
     classification_results_test = np.full((1, len(evaluation_names)), np.nan)
     classification_results_test = xr.DataArray(classification_results_test,
                                                name="Test Results",
                                                dims=["Model", "Evaluation"],
                                                coords=dict(Evaluation=evaluation_names,
-                                                           Model=[model_class.name()]))
-
-    # Select test-programs
-    test_programs = np.random.choice(unique_programs, size=n_test_programs, replace=False)
+                                                           Model=[model.name]))
 
     # Get split indices
     test_idx = 0
@@ -128,9 +125,9 @@ def single_training(tensor_provider, model_class,
                                       y_pred_binary=y_pred_train_binary)
             classification_results_train[0, evaluation_nr] = evaluation_result
         else:
-            special_results_train[(model_class.name(), evalf.name())] = evalf(y_true=y_true_train,
-                                                                              y_pred=y_pred_train,
-                                                                              y_pred_binary=y_pred_train_binary)
+            special_results_train[(model.name, evalf.name())] = evalf(y_true=y_true_train,
+                                                                      y_pred=y_pred_train,
+                                                                      y_pred_binary=y_pred_train_binary)
 
         # Test evaluation
         assert y_pred.shape == y_true.shape, "y_pred ({}) and y_true ({}) " \
@@ -143,9 +140,9 @@ def single_training(tensor_provider, model_class,
             classification_results_test[0, evaluation_nr] = evaluation_result
             evaluation_nr += 1
         else:
-            special_results_test[(model_class.name(), evalf.name())] = evalf(y_true=y_true,
-                                                                             y_pred=y_pred,
-                                                                             y_pred_binary=y_pred_binary)
+            special_results_test[(model.name, evalf.name())] = evalf(y_true=y_true,
+                                                                     y_pred=y_pred,
+                                                                     y_pred_binary=y_pred_binary)
 
     # Save model
     print("\tSaving model")
@@ -179,39 +176,55 @@ if __name__ == "__main__":
     #     results_path=results_path,
     #     n_jobs=-1
     # )
-    model = BasicRecurrent(
+    n_test_programs = 2
+    n_batches = 2000
+    learning_rates = linear_geometric_curve(n=n_batches,
+                                            starting_value=1e-2,
+                                            end_value=1e-8,
+                                            geometric_component=3. / 4,
+                                            geometric_end=5)
+    a_model = BasicRecurrent(
         tensor_provider=the_tensor_provider,
         results_path=results_path,
-        n_batches=10000,
+        n_batches=n_batches,
         recurrent_units=50,
-        linear_units=[]
+        linear_units=[],
+        learning_rate_progression=learning_rates,
+        name_formatter="{}_hey"
     )
-    # model = LogisticRegression(
+    # a_model = LogisticRegression(
     #     tensor_provider=the_tensor_provider,
     # )
-    # model = MLP(
+    # a_model = MLP(
     #     tensor_provider=the_tensor_provider,
     # )
-    # model = SVMSK(
+    # a_model = SVMSK(
     #     tensor_provider=the_tensor_provider,
     #     verbose=True
     # )
-    # model = LogisticRegressionSK(
+    # a_model = LogisticRegressionSK(
     #      tensor_provider=the_tensor_provider,
     # )
 
-    # Get specific path
-    results_path = model.results_path
+    # Create model-specific path and ensure directory
+    results_path = a_model.create_model_path(results_path=results_path)
     shutil.rmtree(str(results_path))
     ensure_folder(results_path)
     redirect_stdout_to_file(Path(results_path, "log.txt"))
     print("Script starting at: {}".format(datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
 
+    # Select test-programs
+    unique_programs = np.array(sorted(set(the_tensor_provider.accessible_annotated_program_ids)))
+    test_programs = np.random.choice(unique_programs, size=n_test_programs, replace=False)
+
     # Run training on a single model
     results_train, results_test, \
-    s_results_train, s_results_test, \
-    model_summary = single_training(tensor_provider=the_tensor_provider,
-                                    model_class=model)  # type: xr.DataArray
+        s_results_train, s_results_test, \
+        model_summary = single_training(
+            tensor_provider=the_tensor_provider,
+            model=a_model,
+            test_programs=test_programs
+        )  # type: xr.DataArray
 
     # Print mean results
     results_train = results_train._to_dataset_split("Model").to_dataframe()
@@ -229,19 +242,19 @@ if __name__ == "__main__":
     print(model_summary)
 
     # Plot ROC if included
-    roc_key = (model.name(), "ROC")
+    roc_key = (a_model.name, "ROC")
     if roc_key in s_results_train:
         positive_rate, negative_rate = s_results_train[roc_key]
         plot_roc(tp_rate=positive_rate,
                  fp_rate=negative_rate,
-                 title="{} ROC Training".format(model.name()))
+                 title="{} ROC Training".format(a_model.name))
         save_fig(Path(results_path, "ROC_Train"))
 
     if roc_key in s_results_test:
         positive_rate, negative_rate = s_results_test[roc_key]
         plot_roc(tp_rate=positive_rate,
                  fp_rate=negative_rate,
-                 title="{} ROC Test".format(model.name()))
+                 title="{} ROC Test".format(a_model.name))
         save_fig(Path(results_path, "ROC_Test"))
 
     print("Script ended at: {}".format(datetime.now().strftime("%d-%m-%Y %H:%M:%S")))

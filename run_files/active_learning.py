@@ -138,7 +138,7 @@ binary_predictions = [int(val) for val in binary_predictions]
 unlabelled_sentences = the_tensor_provider.load_original_sentences(unlabelled)
 
 # Make directory for results
-results_path = Path(ProjectPaths.results, "active_learning_{}".format(model.name()))
+results_path = Path(ProjectPaths.results, "active_learning_{}".format(model.name))
 ensure_folder(results_path)
 
 # Make data for sql-database

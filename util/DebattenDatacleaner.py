@@ -153,7 +153,7 @@ class DebattenDatacleaner:
     def getCleanedPrograms(self, file_paths, program_ids):
         total_sent = 0
         all_programs = dict()
-        count = 1;
+        count = 1
         for i in range(len(file_paths)):
             print('Program {:d} of {:d} ({:s})'.format(i+1,len(file_paths),program_ids[i]))
             program_sentences = self.getHtmlSentences(file_paths[i])

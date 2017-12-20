@@ -8,12 +8,13 @@ from math import ceil
 
 class MLP(DetektorModel):
     @classmethod
-    def name(cls):
+    def _class_name(cls):
         return "MLP"
 
     def __init__(self, tensor_provider, hidden_units=2, learning_rate=0.001, display_step=1,
                  training_epochs=20, verbose=False, use_bow=True, use_embedsum=False, results_path=None,
-                 class_weights=np.array([1.0, 1.0]), batch_size=None, batch_strategy="full"):
+                 class_weights=np.array([1.0, 1.0]), batch_size=None, batch_strategy="full",
+                 name_formatter="{}"):
         """
         :param TensorProvider tensor_provider:
         :param int hidden_units:
@@ -35,7 +36,7 @@ class MLP(DetektorModel):
         self.batch_strategy = batch_strategy
 
         # Initialize super (and make automatic settings-summary)
-        super().__init__(results_path, save_type="tf")
+        super().__init__(results_path, save_type="tf", name_formatter=name_formatter)
 
         self.num_features = self.x = self.y = self.Wxz = self.bz = self.Wzy = self.by = self.z = self.pred = \
             self.cost = self.optimizer = None
@@ -76,7 +77,7 @@ class MLP(DetektorModel):
 
     def _fit(self, tensor_provider, train_idx, y, verbose=0):
         if verbose:
-            print(verbose * " " + "Fitting {}".format(self.name()))
+            print(verbose * " " + "Fitting {}".format(self.name))
             verbose += 2
 
         # Get data
@@ -134,7 +135,7 @@ class MLP(DetektorModel):
 
     def summary_to_string(self):
         result_str = ""
-        result_str += self.name() + "\n"
+        result_str += self.name + "\n"
         result_str += "Num input features: %s\n" % self.num_features
         result_str += "Num hidden units: %i\n" % self.hidden_units
         result_str += "Class weights in cost-fun: (%f,%f)\n" % (self.class_weights[0], self.class_weights[1])

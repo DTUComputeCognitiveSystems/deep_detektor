@@ -61,7 +61,7 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
                                           name="Loo Results",
                                           dims=["Program", "Model", "Evaluation"],
                                           coords=dict(Program=program_names,
-                                                      Model=[model_class.name() for model_class in model_list],
+                                                      Model=[model.name for model in model_list],
                                                       Evaluation=evaluation_names))
 
     # Initialize file for storing ranked sentences
@@ -97,7 +97,7 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
 
         # Go through models
         for model_nr, model in enumerate(model_list):
-            model_name = model.name()
+            model_name = model.name
 
             # Initialize model
             model.initialize_model(tensor_provider=tensor_provider)
@@ -155,21 +155,21 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
                     classification_results[program_nr, model_nr, evaluation_nr] = evaluation_result
                     evaluation_nr += 1
                 else:
-                    special_results[(model.name(), evalf.name(), program_nr)] = evalf(y_true=y_true,
-                                                                                      y_pred=y_pred,
-                                                                                      y_pred_binary=y_pred_binary)
+                    special_results[(model.name, evalf.name(), program_nr)] = evalf(y_true=y_true,
+                                                                                             y_pred=y_pred,
+                                                                                             y_pred_binary=y_pred_binary)
     ###
     # Plot ROC curves if wanted
 
     # Go through models
     models_mean_rocs = []
-    for model_class in model_list:
+    for model in model_list:
         rocs = []
         labels = []
 
         # Go through programs
         for program_nr in range(len(unique_programs)):
-            key = (model_class.name(), "ROC", program_nr)
+            key = (model.name, "ROC", program_nr)
             if key in special_results:
                 rocs.append(special_results[key])
                 labels.append("Program {}".format(program_nr))
@@ -178,17 +178,17 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
         plot_multiple_rocs(rocs=rocs, labels=labels, center_line=False)
         mean = mean_rocs(rocs)
         models_mean_rocs.append(mean)
-        plot_roc(*mean, title=model_class.name(), label="Mean",
+        plot_roc(*mean, title=model.name, label="Mean",
                  color="black", linestyle="--")
         plt.legend()
 
         # Store figure
-        file_name = "ROC_{}".format(model_class.name())
+        file_name = "ROC_{}".format(model.name)
         save_fig(Path(path, file_name))
         plt.close()
 
     # Plot mean-ROCs for models
-    names = [model_class.name() for model_class in model_list]
+    names = [model.name for model in model_list]
     plot_multiple_rocs(rocs=models_mean_rocs, labels=names, center_line=True,
                        title="Models Mean-ROC")
     plt.legend()

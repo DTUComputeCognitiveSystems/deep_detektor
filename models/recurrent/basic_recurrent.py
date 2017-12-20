@@ -19,7 +19,9 @@ class BasicRecurrent(DetektorModel):
                  n_batches=10, batch_size=64,
                  display_step=1, results_path=None, learning_rate_progression=1e-3,
                  optimizer_class=tf.train.RMSPropOptimizer,
-                 recurrent_neuron_type=tf.nn.rnn_cell.GRUCell):
+                 recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
+                 name_formatter="{}"
+                 ):
         """
         :param TensorProvider tensor_provider: Provides data for model.
         :param list | tuple linear_units: Number of units in fully-connected layers.
@@ -50,7 +52,7 @@ class BasicRecurrent(DetektorModel):
         self.recurrent_neuron_type = recurrent_neuron_type
 
         # Initialize super (and make automatic settings-summary)
-        super().__init__(results_path, save_type="tf")
+        super().__init__(results_path, save_type="tf", name_formatter=name_formatter)
 
         self.learning_rate_progression = learning_rate_progression
 
@@ -162,7 +164,7 @@ class BasicRecurrent(DetektorModel):
             fig = plt.figure(figsize=(14, 11))
 
         if verbose:
-            print(verbose * " " + "Fitting {}".format(self.name()))
+            print(verbose * " " + "Fitting {}".format(self.name))
             verbose += 2
 
         # Get training data
@@ -312,7 +314,7 @@ class BasicRecurrent(DetektorModel):
         return res
 
     @classmethod
-    def name(cls):
+    def _class_name(cls):
         return "BasicRecurrent"
 
     def predict(self, tensor_provider, predict_idx, additional_fetch=None):

@@ -13,13 +13,14 @@ from math import ceil
 
 class GaussianProcess(DetektorModel):
     @classmethod
-    def name(cls):
+    def _class_name(cls):
         return "GaussianProcess"
 
     def __init__(self, tensor_provider,
                  use_bow=True, use_embedsum=False,
                  display_step=1, verbose=False, results_path=None,
-                 kernel=None, n_restarts_optimizer=0, max_iter_predict=100, n_jobs=1
+                 kernel=None, n_restarts_optimizer=0, max_iter_predict=100, n_jobs=1,
+                 name_formatter="{}"
                  ):
 
         # Settings
@@ -36,7 +37,7 @@ class GaussianProcess(DetektorModel):
         self.num_features = None  # type: int
 
         # Initialize super (and make automatic settings-summary)
-        super().__init__(results_path=results_path, save_type="sk")
+        super().__init__(results_path=results_path, save_type="sk", name_formatter=name_formatter)
 
     def initialize_model(self, tensor_provider):
         # Get number of features
@@ -54,7 +55,7 @@ class GaussianProcess(DetektorModel):
 
     def _fit(self, tensor_provider, train_idx, y, verbose=0):
         if verbose:
-            print(verbose * " " + "Fitting {}".format(self.name()))
+            print(verbose * " " + "Fitting {}".format(self.name))
             verbose += 2
 
         # Get training data

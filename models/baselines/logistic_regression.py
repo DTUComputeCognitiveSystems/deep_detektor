@@ -10,12 +10,12 @@ from math import ceil
 
 class LogisticRegression(DetektorModel):
     @classmethod
-    def name(cls):
+    def _class_name(cls):
         return "LogisticRegression"
 
     def __init__(self, tensor_provider, use_bow=True, use_embedsum=False, display_step=1,
                  learning_rate=0.001, training_epochs=20, results_path=None,
-                 batch_size=None, batch_strategy="full", verbose=False, ):
+                 batch_size=None, batch_strategy="full", verbose=False, name_formatter="{}"):
         """
         :param TensorProvider tensor_provider:
         :param float learning_rate:
@@ -36,7 +36,7 @@ class LogisticRegression(DetektorModel):
         self.num_features = None  # type: int
 
         # Initialize super (and make automatic settings-summary)
-        super().__init__(results_path, save_type="tf")
+        super().__init__(results_path, save_type="tf", name_formatter=name_formatter)
 
         self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = None
 
@@ -72,7 +72,7 @@ class LogisticRegression(DetektorModel):
 
     def _fit(self, tensor_provider, train_idx, y, verbose=0):
         if verbose:
-            print(verbose * " " + "Fitting {}".format(self.name()))
+            print(verbose * " " + "Fitting {}".format(self.name))
             verbose += 2
 
         # Get training data
@@ -133,7 +133,7 @@ class LogisticRegression(DetektorModel):
 
     def summary_to_string(self):
         result_str = ""
-        result_str += self.name() + "\n"
+        result_str += self.name + "\n"
         result_str += "Num input features: %s\n" % self.num_features
         result_str += "Learning rate: %f  \n" % self.learning_rate
         result_str += "Num training epochs: %i  \n" % self.training_epochs
@@ -147,15 +147,14 @@ class LogisticRegression(DetektorModel):
 
 class LogisticRegressionSK(DetektorModel):
     @classmethod
-    def name(cls):
+    def _class_name(cls):
         return "LogisticRegressionSKLEARN"
 
     def __init__(self, tensor_provider, use_bow=True, use_embedsum=False, display_step=1, verbose=False,
-                 results_path=None, penalty="l2", tol=1e-4, C=1.0, max_iter=100):
+                 results_path=None, penalty="l2", tol=1e-4, C=1.0, max_iter=100,
+                 name_formatter="{}"):
         """
         :param TensorProvider tensor_provider:
-        :param float learning_rate:
-        :param int training_epochs:
         :param bool verbose:
         """
 
@@ -174,7 +173,7 @@ class LogisticRegressionSK(DetektorModel):
         self.num_features = None  # type: int
 
         # Initialize super (and make automatic settings-summary)
-        super().__init__(results_path=results_path, save_type="sk")
+        super().__init__(results_path=results_path, save_type="sk", name_formatter=name_formatter)
 
         self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = self.model \
             = None
@@ -192,7 +191,7 @@ class LogisticRegressionSK(DetektorModel):
 
     def _fit(self, tensor_provider, train_idx, y, verbose=0):
         if verbose:
-            print(verbose * " " + "Fitting {}".format(self.name()))
+            print(verbose * " " + "Fitting {}".format(self.name))
             verbose += 2
 
         # Get training data
@@ -225,7 +224,7 @@ class LogisticRegressionSK(DetektorModel):
 
     def summary_to_string(self):
         result_str = ""
-        result_str += self.name() + "\n"
+        result_str += self.name + "\n"
         result_str += "Num input features: %s\n" % self.num_features
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum

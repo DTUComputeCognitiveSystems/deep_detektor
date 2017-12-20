@@ -1,4 +1,5 @@
 import xarray as xr
+import tensorflow as tf
 from pathlib import Path
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
     Precision, AreaUnderROC
@@ -10,7 +11,6 @@ from util.tensor_provider import TensorProvider
 from util.sql_utilities import rows2sql_table
 from util.utilities import ensure_folder, redirect_stdout_to_file
 from project_paths import ProjectPaths
-import tensorflow as tf
 
 overfit_like_crazy_directory = Path(ProjectPaths.results, "overfit_like_crazy")
 
@@ -46,23 +46,25 @@ the_tensor_provider = TensorProvider(verbose=True)
 #     class_weights=np.array([1.0, 1.0])
 # )
 n_batches = 5000
-learning_rates = linear_geometric_curve(n=n_batches,
-                                        starting_value=1e-2,
-                                        end_value=1e-8,
-                                        geometric_component=3. / 4,
-                                        geometric_end=5)
+# learning_rates = linear_geometric_curve(n=n_batches,
+#                                         starting_value=1e-2,
+#                                         end_value=1e-8,
+#                                         geometric_component=3. / 4,
+#                                         geometric_end=5)
+learning_rates = [1e-3] * 1000 + [1e-4] * 2000 + [1e-5] * 2000
 model = BasicRecurrent(
     tensor_provider=the_tensor_provider,
     recurrent_units=100,
     linear_units=[100, 50],
     word_embedding=True,
     pos_tags=True,
-    char_embedding=True,
+    char_embedding=False,
     n_batches=n_batches,
     batch_size=64,
     display_step=1,
     results_path=overfit_like_crazy_directory,
-    learning_rate_progression=learning_rates
+    learning_rate_progression=learning_rates,
+    # recurrent_neuron_type=tf.nn.rnn.
 )
 
 # Evaluation functions
@@ -86,7 +88,7 @@ classification_results_training = xr.DataArray(classification_results_training,
                                                name="Training Results",
                                                dims=["Model", "Evaluation"],
                                                coords=dict(Evaluation=[val.name() for val in eval_functions],
-                                                           Model=[model.name()]))
+                                                           Model=[model.name]))
 
 # Make data-array for test results
 classification_results_test = np.full((1, n_evaluations), np.nan)
@@ -94,7 +96,7 @@ classification_results_test = xr.DataArray(classification_results_test,
                                            name="Test Results",
                                            dims=["Model", "Evaluation"],
                                            coords=dict(Evaluation=[val.name() for val in eval_functions],
-                                                       Model=[model.name()]))
+                                                       Model=[model.name]))
 
 # Elements keys
 keys = list(sorted(the_tensor_provider.accessible_annotated_keys))
@@ -122,6 +124,8 @@ train_idx = np.where(train_idx > 0.5)[0]
 
 # Check that nothing overlaps (sanity check)
 assert not set(test_idx).intersection(set(train_idx))
+
+model.batch_size = len(train_idx)
 
 # Convert to keys
 train_idx = [keys[val] for val in train_idx]
@@ -212,7 +216,7 @@ headers = [
     "model_str"
 ]
 results_data = [
-    model.name(),
+    model.name,
     n_train_programs,
     n_test_programs,
     *classification_results_training.data.tolist()[0],
