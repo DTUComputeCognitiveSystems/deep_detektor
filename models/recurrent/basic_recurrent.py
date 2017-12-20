@@ -14,13 +14,13 @@ from pathlib import Path
 
 
 class BasicRecurrent(DetektorModel):
-    def __init__(self, tensor_provider, recurrent_units=20, linear_units=(10, 4),
+    def __init__(self, tensor_provider, recurrent_units=20, linear_units=(),
                  word_embedding=True, pos_tags=True, char_embedding=True,
                  n_batches=10, batch_size=64,
                  display_step=1, results_path=None, learning_rate_progression=1e-3,
                  optimizer_class=tf.train.RMSPropOptimizer,
-                 recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
-                 name_formatter="{}"
+                 recurrent_neuron_type=tf.nn.rnn_cell.BasicRNNCell,
+                 name_formatter="{}", dropouts=()
                  ):
         """
         :param TensorProvider tensor_provider: Provides data for model.
@@ -50,6 +50,7 @@ class BasicRecurrent(DetektorModel):
         self.recurrent_units = recurrent_units
         self.optimizer_class = optimizer_class
         self.recurrent_neuron_type = recurrent_neuron_type
+        self.dropouts = dropouts
 
         # Initialize super (and make automatic settings-summary)
         super().__init__(results_path, save_type="tf", name_formatter=name_formatter)
@@ -60,11 +61,12 @@ class BasicRecurrent(DetektorModel):
         self.num_features = self.inputs = self.input_lengths = self.truth = self._rec_cell = self.rec_cell_outputs = \
             self.rec_cell_state = self.feedforward_activations = self._ffout_m = self._ffout_b = self._ffout_prod = \
             self._ffout_a = self.prediction = self.cost = self.learning_rate = self.optimize_op = \
-            self._summary_merged = self._summary_train_writer = self.optimizer = None
+            self._summary_merged = self._summary_train_writer = self.optimizer = self.is_training = None
 
     def initialize_model(self, tensor_provider):
         # Use model's graph
         with self._tf_graph.as_default():
+            self.is_training = tf.placeholder(tf.bool, name="is_training")
 
             # Get number of features
             self.num_features = tensor_provider.input_dimensions(word_embedding=self.use_word_embedding,
@@ -90,6 +92,10 @@ class BasicRecurrent(DetektorModel):
             else:
                 c_input = self.rec_cell_state
 
+            # Optional dropout
+            if 0 in self.dropouts:
+                c_input = tf.contrib.layers.dropout(c_input, is_training=self.is_training)
+
             # Fully connected layers
             self.feedforward_activations = []
             last_units = self.recurrent_units
@@ -103,8 +109,14 @@ class BasicRecurrent(DetektorModel):
                                                    name="ff{}_b".format(layer_nr))
                     feedforward_product = tf.matmul(c_input, feedforward_weights)
                     feedforward_sum = feedforward_product + feedforward_bias
+                    feedforward_activation = tf.nn.relu(feedforward_sum, name="ff{}_activation".format(layer_nr))
+
+                    if layer_nr in self.dropouts:
+                        feedforward_activation = tf.contrib.layers.dropout(feedforward_activation,
+                                                                           is_training=self.is_training)
+
                     self.feedforward_activations.append(
-                        tf.nn.relu(feedforward_sum, name="ff{}_activation".format(layer_nr))
+                        feedforward_activation
                     )
 
                 # Next layer
@@ -211,7 +223,8 @@ class BasicRecurrent(DetektorModel):
                 self.inputs: c_inputs,
                 self.input_lengths: c_input_lengths,
                 self.truth: c_truth,
-                self.learning_rate: c_learning_rate
+                self.learning_rate: c_learning_rate,
+                self.is_training: True
             }
 
             # Fetching
@@ -329,6 +342,7 @@ class BasicRecurrent(DetektorModel):
         feed_dict = {
             self.inputs: input_tensor,
             self.input_lengths: input_lengths,
+            self.is_training: False
         }
 
         # Do prediction

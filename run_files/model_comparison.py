@@ -3,9 +3,11 @@ from pathlib import Path
 import numpy as np
 import shutil
 
-from models.baselines import LogisticRegression
+from models.baselines import LogisticRegression, LogisticRegressionSK
+from models.recurrent.basic_recurrent import BasicRecurrent
 from project_paths import ProjectPaths
 from run_files.single_train import single_training
+from util.learning_rate_utilities import linear_geometric_curve
 from util.tensor_provider import TensorProvider
 
 if __name__ == "__main__":
@@ -25,43 +27,113 @@ if __name__ == "__main__":
     used_training_programs = np.array(sorted(set(unique_programs).difference(set(used_test_programs))))
 
     ################
+    # Re-used settings
+
+    # BasicRecurrent
+    standard_recurrent_settings = dict(
+        tensor_provider=the_tensor_provider,
+        results_path=base_path,
+        n_batches=4000,
+        learning_rate_progression=linear_geometric_curve(
+            n=4000,
+            starting_value=1e-2,
+            end_value=1e-8,
+            geometric_component=3. / 4,
+            geometric_end=5
+        )
+    )
+
+    # LogisticRegressionSK
 
     # Remove everything there is in base-directory
     if base_path.is_dir():
         shutil.rmtree(str(base_path))
 
+    ################
+    # List of models
+
     # Models
     model_list = [
-        LogisticRegression(
-            the_tensor_provider,
-            use_bow=True,
-            use_embedsum=False,
-            training_epochs=10,
-            learning_rate=0.1,
-            batch_size=400,
-            batch_strategy="weighted_sampling",
-            name_formatter="{}_only_bow"
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=15,
+            name_formatter="{}_15_rnn",
         ),
-        LogisticRegression(
-            the_tensor_provider,
-            use_bow=False,
-            use_embedsum=True,
-            training_epochs=10,
-            learning_rate=0.001,
-            batch_size=400,
-            batch_strategy="weighted_sampling",
-            name_formatter="{}_only_embedsum"
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=20,
+            name_formatter="{}_20_rnn",
         ),
-        LogisticRegression(
-            the_tensor_provider,
-            use_bow=False,
-            use_embedsum=True,
-            training_epochs=10,
-            learning_rate=0.001,
-            batch_size=400,
-            batch_strategy="weighted_sampling",
-            name_formatter="{}_bow_and_embedsum"
-        )
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=25,
+            name_formatter="{}_25_rnn",
+        ),
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=30,
+            name_formatter="{}_30_rnn",
+        ),
+        # Dropout:
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=20,
+            name_formatter="{}_20_rnn_drop",
+            dropouts=[0]
+        ),
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=25,
+            name_formatter="{}_25_rnn_drop",
+            dropouts=[0]
+        ),
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=30,
+            name_formatter="{}_30_rnn_drop",
+            dropouts=[0]
+        ),
+        # Linear units
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=15,
+            name_formatter="{}_15_rnn_10_lin",
+            linear_units=[10],
+        ),
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=20,
+            name_formatter="{}_20_rnn_10_lin",
+            linear_units=[10],
+        ),
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=25,
+            name_formatter="{}_25_rnn_10_lin",
+            linear_units=[10],
+        ),
+        # Linear units and dropout
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=15,
+            name_formatter="{}_15_rnn_10_lin_drop",
+            linear_units=[10],
+            dropouts=[0]
+        ),
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=20,
+            name_formatter="{}_20_rnn_10_lin_drop",
+            linear_units=[10],
+            dropouts=[0]
+        ),
+        BasicRecurrent(
+            **standard_recurrent_settings,
+            recurrent_units=25,
+            name_formatter="{}_25_rnn_10_lin_drop",
+            linear_units=[10],
+            dropouts=[0]
+        ),
     ]
 
     ################
