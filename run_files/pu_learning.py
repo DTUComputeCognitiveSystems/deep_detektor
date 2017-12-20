@@ -36,7 +36,7 @@ reliable_negative_threshold = 0.99
 n_iterations = 20
 
 # Path for results
-results_path = Path(ProjectPaths.results, "pu_learning_{}".format(model.name()))
+results_path = Path(ProjectPaths.results, "pu_learning_{}".format(model.name))
 model.results_path = results_path
 
 ###########

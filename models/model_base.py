@@ -11,26 +11,32 @@ from util.utilities import ensure_folder
 
 
 class DetektorModel:
-    def __init__(self, results_path, save_type=None, summary_ignore=set()):
+    def __init__(self, results_path, save_type=None, summary_ignore=set(), name_formatter="{}"):
         # Make graph and session
         self._tf_graph = tf.Graph()
         self._sess = tf.Session(graph=self._tf_graph)
         self.save_type = save_type
         self.model = None
         self._auto_summary_keys = None
+        name_formatter = name_formatter if name_formatter is not None else "{}"
+        self._name = name_formatter.format(self._class_name())
 
         # Create automatic summary dictionary
         self._create_autosummary_dict(summary_ignore)
 
         # Set path
         if results_path is not None:
-            self.results_path = Path(results_path, self.name())
+            self.results_path = Path(results_path, self.name)
             ensure_folder(self.results_path)
         else:
             self.results_path = None
 
+    @property
+    def name(self):
+        return self._name
+
     @classmethod
-    def name(cls):
+    def _class_name(cls):
         raise NotImplementedError
 
     def initialize_model(self, tensor_provider):
@@ -86,7 +92,7 @@ class DetektorModel:
         self._auto_summary_keys = autosummary
 
     def autosummary_str(self):
-        summary_str = self.name()
+        summary_str = self.name
         for key in sorted(self._auto_summary_keys):
             summary_str += "\n    {} : {}".format(key, getattr(self, key))
         return summary_str

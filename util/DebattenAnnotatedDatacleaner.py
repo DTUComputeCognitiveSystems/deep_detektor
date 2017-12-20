@@ -209,8 +209,8 @@ class DebattenAnnotatedDatacleaner:
         all_highlights = [None]*len(file_paths)
         all_highlights_ind = [None]*len(file_paths)
         
-        total_claims = 0;
-        total_sentences = 0;
+        total_claims = 0
+        total_sentences = 0
         
         for f in range(len(file_paths)):
             all_program_id[f], all_sentences_id[f], sentences = \
@@ -221,13 +221,13 @@ class DebattenAnnotatedDatacleaner:
                         self.getCleanedProgramSentences(sentences)
             
             num_claims = len(list(filter(None,all_highlights[f])))
-            if disp: print('\tThere were {:d} claims out of {:d} sentences ({:2.2f}%)'.format(num_claims\
+            if disp: print('\tThere were {:d} claims out of {:d} sentences ({:2.2f}%)'.format(num_claims
                     ,len(sentences), num_claims/float(len(sentences))*100))
                 
             total_claims = total_claims+num_claims
             total_sentences = total_sentences + len(sentences)
             
-        if disp: print('\nIn total there were {:d} claims out of {:d} sentences ({:2.2f}%)'.format(total_claims\
+        if disp: print('\nIn total there were {:d} claims out of {:d} sentences ({:2.2f}%)'.format(total_claims
                 , total_sentences, total_claims/float(total_sentences)*100))
         
         # ...
@@ -256,7 +256,7 @@ class DebattenAnnotatedDatacleaner:
                     #print(all_sentences[p][si])
                     print(all_highlights_ind[p][si])
                     print(all_highlights[p][si])
-                    new_s, new_idx = self.processMultiClaim(all_sentences[p][si],\
+                    new_s, new_idx = self.processMultiClaim(all_sentences[p][si],
                                                       all_highlights_ind[p][si])
                     
                     print('Trying to handle this multi-claim, is the output correct?')

@@ -18,7 +18,6 @@ def model_comparison(tensor_provider, model_list,
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param list[DetektorModel] model_list: List of initialized Detektor Models
-    :param list[int] test_programs: List of test-programs to use (indices)
     :param list[Evaluation] eval_functions: List of evaluation functions used to test models.
     :param bool return_predictions: If True, the method stores all model test-predictions and returns them as well.
                                     Can be used to determine whether errors are the same across models.
@@ -33,7 +32,7 @@ def model_comparison(tensor_provider, model_list,
     # Initialize array for holding results
     special_results_train = dict()
     evaluation_names = [val.name() for val in eval_functions if val.is_single_value]
-    model_names = [mod.name() for mod in model_list]
+    model_names = [mod.name for mod in model_list]
     classification_results_train = np.full((len(model_list), len(evaluation_names)), np.nan)
     classification_results_train = xr.DataArray(classification_results_train,
                                                 name="Training Results",

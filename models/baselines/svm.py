@@ -6,14 +6,13 @@ from sklearn.svm import SVC
 
 class SVMSK(DetektorModel):
     @classmethod
-    def name(cls):
+    def _class_name(cls):
         return "Support Vector Machine (Scikit-learn)"
 
-    def __init__(self, tensor_provider, use_bow=True, use_embedsum=False, display_step=1, verbose=False):
+    def __init__(self, tensor_provider, use_bow=True, use_embedsum=False, display_step=1, verbose=False,
+                 name_formatter="{}"):
         """
         :param TensorProvider tensor_provider:
-        :param float learning_rate:
-        :param int training_epochs:
         :param bool verbose:
         """
 
@@ -26,7 +25,7 @@ class SVMSK(DetektorModel):
         self.num_features = None
 
         # Initialize super (and make automatic settings-summary)
-        super().__init__(None)
+        super().__init__(None, name_formatter=name_formatter)
 
         self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = None
 
@@ -38,7 +37,7 @@ class SVMSK(DetektorModel):
 
     def _fit(self, tensor_provider, train_idx, y, verbose=0):
         if verbose:
-            print(verbose * " " + "Fitting {}".format(self.name()))
+            print(verbose * " " + "Fitting {}".format(self.name))
             verbose += 2
 
         # Get training data
@@ -71,7 +70,7 @@ class SVMSK(DetektorModel):
 
     def summary_to_string(self):
         result_str = ""
-        result_str += self.name() + "\n"
+        result_str += self.name + "\n"
         result_str += "Num input features: %s\n" % self.num_features
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum
