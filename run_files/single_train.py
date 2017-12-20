@@ -11,7 +11,6 @@ from models.baselines import LogisticRegression, MLP, LogisticRegressionSK, SVMS
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
     AreaUnderROC
 from models.recurrent.basic_recurrent import BasicRecurrent
-from models.PositiveLearningElkan.pu_learning import PULogisticRegressionSK
 from util.learning_rate_utilities import linear_geometric_curve
 from util.tensor_provider import TensorProvider
 from util.utilities import ensure_folder, save_fig, redirect_stdout_to_file, close_stdout_file
@@ -19,7 +18,7 @@ from datetime import datetime
 
 
 def single_training(tensor_provider, model,
-                    test_programs, eval_functions=None, return_predictions=False):
+                    test_programs, base_path, eval_functions=None, return_predictions=False):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param DetektorModel model: Model-class to train and test.
@@ -29,6 +28,16 @@ def single_training(tensor_provider, model,
                                     Can be used to determine whether errors are the same across models.
     :return:
     """
+    # Create model-specific path and ensure directory
+    results_path = model.create_model_path(results_path=base_path)
+    if results_path.is_dir():
+        shutil.rmtree(str(results_path))
+    ensure_folder(results_path)
+
+    # Redirect prints to a file and denote script start-time
+    redirect_stdout_to_file(Path(results_path, "log.txt"))
+    print("Script starting at: {}".format(datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
+
     # Default evaluation score
     if eval_functions is None:
         eval_functions = [Accuracy(), F1(), TruePositives(), TrueNegatives(), FalsePositives(), FalseNegatives(),
@@ -65,7 +74,7 @@ def single_training(tensor_provider, model,
     test_idx = np.where(test_idx > 0.5)[0]
 
     # Report
-    print("Test programs {}, using {} training samples and {} test samples.".format(test_programs + 1,
+    print("Test programs {}, using {} training samples and {} test samples.".format(test_programs,
                                                                                     len(train_idx),
                                                                                     len(test_idx)))
 
@@ -156,6 +165,46 @@ def single_training(tensor_provider, model,
     if return_predictions:
         returns.extend([train_predictions, test_predictions])
 
+    ############################################
+    # Print, plot and store!
+
+    # Make summary
+    model_summary = model.summary_to_string()
+
+    # Print mean results
+    results_train = classification_results_train._to_dataset_split("Model").to_dataframe()
+    results_test = classification_results_test._to_dataset_split("Model").to_dataframe()
+    with Path(results_path, "results.txt").open("w") as file:
+        file.write(model_summary)
+        file.write(str(results_train))
+        file.write(str(results_test))
+
+    print("\nSingle training Results - TRAINING \n" + "-" * 75)
+    print(results_train)
+    print("\nSingle training Results - TEST \n" + "-" * 75)
+    print(results_test)
+    print("\nModel Summary \n" + "-" * 75)
+    print(model_summary)
+
+    # Plot ROC if included
+    roc_key = (a_model.name, "ROC")
+    if roc_key in special_results_train:
+        positive_rate, negative_rate = special_results_train[roc_key]
+        plot_roc(tp_rate=positive_rate,
+                 fp_rate=negative_rate,
+                 title="{} ROC Training".format(a_model.name))
+        save_fig(Path(results_path, "ROC_Train"))
+
+    if roc_key in special_results_test:
+        positive_rate, negative_rate = special_results_test[roc_key]
+        plot_roc(tp_rate=positive_rate,
+                 fp_rate=negative_rate,
+                 title="{} ROC Test".format(a_model.name))
+        save_fig(Path(results_path, "ROC_Test"))
+
+    print("Script ended at: {}".format(datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
+    close_stdout_file()
+
     return tuple(returns)
 
 
@@ -165,7 +214,7 @@ if __name__ == "__main__":
     the_tensor_provider = TensorProvider(verbose=True)
 
     # Results path
-    results_path = Path(ProjectPaths.results, "single_train")
+    base_path = Path(ProjectPaths.results, "single_train")
 
     # Choose model
     # model = GaussianProcess(
@@ -185,7 +234,7 @@ if __name__ == "__main__":
                                             geometric_end=5)
     a_model = BasicRecurrent(
         tensor_provider=the_tensor_provider,
-        results_path=results_path,
+        results_path=base_path,
         n_batches=n_batches,
         recurrent_units=50,
         linear_units=[],
@@ -206,56 +255,14 @@ if __name__ == "__main__":
     #      tensor_provider=the_tensor_provider,
     # )
 
-    # Create model-specific path and ensure directory
-    results_path = a_model.create_model_path(results_path=results_path)
-    shutil.rmtree(str(results_path))
-    ensure_folder(results_path)
-    redirect_stdout_to_file(Path(results_path, "log.txt"))
-    print("Script starting at: {}".format(datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
-
     # Select test-programs
     unique_programs = np.array(sorted(set(the_tensor_provider.accessible_annotated_program_ids)))
-    test_programs = np.random.choice(unique_programs, size=n_test_programs, replace=False)
+    used_test_programs = np.random.choice(unique_programs, size=n_test_programs, replace=False)
 
     # Run training on a single model
-    results_train, results_test, \
-        s_results_train, s_results_test, \
-        model_summary = single_training(
+    single_training(
             tensor_provider=the_tensor_provider,
             model=a_model,
-            test_programs=test_programs
-        )  # type: xr.DataArray
-
-    # Print mean results
-    results_train = results_train._to_dataset_split("Model").to_dataframe()
-    results_test = results_test._to_dataset_split("Model").to_dataframe()
-    with Path(results_path, "results.txt").open("w") as file:
-        file.write(model_summary)
-        file.write(str(results_train))
-        file.write(str(results_test))
-
-    print("\nSingle training Results - TRAINING \n" + "-" * 75)
-    print(results_train)
-    print("\nSingle training Results - TEST \n" + "-" * 75)
-    print(results_test)
-    print("\nModel Summary \n" + "-" * 75)
-    print(model_summary)
-
-    # Plot ROC if included
-    roc_key = (a_model.name, "ROC")
-    if roc_key in s_results_train:
-        positive_rate, negative_rate = s_results_train[roc_key]
-        plot_roc(tp_rate=positive_rate,
-                 fp_rate=negative_rate,
-                 title="{} ROC Training".format(a_model.name))
-        save_fig(Path(results_path, "ROC_Train"))
-
-    if roc_key in s_results_test:
-        positive_rate, negative_rate = s_results_test[roc_key]
-        plot_roc(tp_rate=positive_rate,
-                 fp_rate=negative_rate,
-                 title="{} ROC Test".format(a_model.name))
-        save_fig(Path(results_path, "ROC_Test"))
-
-    print("Script ended at: {}".format(datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
-    close_stdout_file()
+            test_programs=used_test_programs,
+            base_path=base_path
+        )
