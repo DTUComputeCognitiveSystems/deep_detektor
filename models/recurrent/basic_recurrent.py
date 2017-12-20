@@ -1,3 +1,4 @@
+import warnings
 from time import time
 
 from models.model_base import DetektorModel
@@ -40,7 +41,6 @@ class BasicRecurrent(DetektorModel):
         self.display_step = display_step
 
         # Settings
-        self.learning_rate_progression = learning_rate_progression
         self.use_char_embedding = char_embedding
         self.use_pos_tags = pos_tags
         self.use_word_embedding = word_embedding
@@ -51,6 +51,8 @@ class BasicRecurrent(DetektorModel):
 
         # Initialize super (and make automatic settings-summary)
         super().__init__(results_path, save_type="tf")
+
+        self.learning_rate_progression = learning_rate_progression
 
         # Uninitialized fields
         self.num_features = self.inputs = self.input_lengths = self.truth = self._rec_cell = self.rec_cell_outputs = \
@@ -171,13 +173,13 @@ class BasicRecurrent(DetektorModel):
         input_lengths = tensor_provider.load_data_tensors(data_keys_or_idx=train_idx, word_counts=True)["word_counts"]
         train_idx = list(range(len(train_idx)))
 
-        # Make learning rates
+        # Note learning rates
         if isinstance(self.learning_rate_progression, float):
             learning_rates = [self.learning_rate_progression] * self.n_batches
         else:
             learning_rates = self.learning_rate_progression
 
-        # Calc sample probability based on class-size
+        # Calculate sample probability based on class-size
         # TODO: Move this to own function and implement a "batch_strategy" input
         non_claim_if = 1.0 / sum(y == 0)
         claim_if = 1.0 / sum(y == 1)
@@ -247,12 +249,12 @@ class BasicRecurrent(DetektorModel):
                 if (batch_nr + 1) % self.display_step == 0 and verbose:
                     print(verbose * " ", end="")
                     if isinstance(self.learning_rate_progression, float):
-                        print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}."
+                        print_formatter = "Batch {: 8d} / {: 8d}. cost = {:5.3e}."
                     else:
-                        print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}. learning_rate = {:.2e}"
+                        print_formatter = "Batch {: 8d} / {: 8d}. cost = {:5.3e}. learning_rate = {:.2e}"
 
                     time_label = "{}, {:7.2f}s : ".format(datetime.now().strftime("%H:%M:%S"),
-                                                                time() - start_time)
+                                                          time() - start_time)
                     print(time_label + print_formatter
                           .format(batch_nr + 1,
                                   self.n_batches,
@@ -263,6 +265,51 @@ class BasicRecurrent(DetektorModel):
         if self.results_path is not None:
             plt.close("all")
             plt.ion()
+
+    def _run(self, tensor_provider, run_idx):
+        """
+        USE ONLY FOR DEBUGGING AND VERIFICATION!
+        :param tensor_provider:
+        :param run_idx:
+        :return:
+        """
+        warnings.warn("Use only this method for debugging! (unless we keep working on it)")
+
+        # Use model's graph and run initializer
+        with self._tf_graph.as_default():
+            self._sess.run(tf.global_variables_initializer())
+
+        # Get run data
+        input_tensor = tensor_provider.load_concat_input_tensors(data_keys_or_idx=run_idx,
+                                                                 word_embedding=self.use_word_embedding,
+                                                                 char_embedding=self.use_char_embedding,
+                                                                 pos_tags=self.use_pos_tags)
+        input_lengths = tensor_provider.load_data_tensors(data_keys_or_idx=run_idx, word_counts=True)["word_counts"]
+        train_idx = list(range(len(run_idx)))
+
+        # Get truths of data
+        y = tensor_provider.load_labels(data_keys_or_idx=run_idx)
+
+        # Prepare data
+        c_truth = y
+        c_truth = np.stack([c_truth == 0, c_truth == 1], axis=1) * 1
+        c_input_lengths = input_lengths
+
+        # Feeds
+        feed_dict = {
+            self.inputs: input_tensor,
+            self.input_lengths: c_input_lengths,
+            self.truth: c_truth,
+        }
+
+        # Fetching
+        fetch = [self.cost, self.truth, self._ffout_a, self.prediction]
+
+        # Run batch training
+        res = self._sess.run(fetches=fetch,
+                             feed_dict=feed_dict)
+
+        return res
 
     @classmethod
     def name(cls):
@@ -288,6 +335,9 @@ class BasicRecurrent(DetektorModel):
         else:
             predictions = self._sess.run([self.prediction] + additional_fetch, feed_dict=feed_dict)
 
+        # Convert to single column
+        predictions = predictions[:, 1]
+
         # Binary conversion
         binary_predictions = predictions > 0.5
 
@@ -295,3 +345,33 @@ class BasicRecurrent(DetektorModel):
 
     def summary_to_string(self):
         return self.autosummary_str()
+
+
+if __name__ == "__main__":
+    # Initialize tensor-provider (data-source)
+    the_tensor_provider = TensorProvider(verbose=True)
+
+    # Create model
+    model = BasicRecurrent(
+        tensor_provider=the_tensor_provider
+    )
+    model.initialize_model(tensor_provider=the_tensor_provider)
+
+    # Get some random data
+    test_size = 2000
+    all_keys = np.array(the_tensor_provider.accessible_annotated_keys)
+    all_indices = list(range(len(all_keys)))
+    random_keys = [tuple(val) for val in
+                   all_keys[np.random.choice(all_indices, test_size)]]
+
+    # Run on data
+    res = model._run(
+        tensor_provider=the_tensor_provider,
+        run_idx=random_keys
+    )
+
+    # Split outputs
+    test_cost, test_truth, test_ffout_a, test_prediction = res
+
+    # Get true labels
+    test_y = the_tensor_provider.load_labels(data_keys_or_idx=random_keys)
