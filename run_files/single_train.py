@@ -254,6 +254,9 @@ if __name__ == "__main__":
     # a_model = LogisticRegressionSK(
     #      tensor_provider=the_tensor_provider,
     # )
+    a_model = PULogisticRegressionSK(
+         tensor_provider=the_tensor_provider,
+    )
 
     # Select test-programs
     unique_programs = np.array(sorted(set(the_tensor_provider.accessible_annotated_program_ids)))
