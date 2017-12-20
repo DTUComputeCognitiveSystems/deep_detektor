@@ -79,6 +79,7 @@ class PULogisticRegressionSK(DetektorModel):
         self.model.fit(x[train_idx], y[train_idx])
         hold_out_predictions = self.model.predict_proba(x[positive_val_idx])
         c = np.mean(hold_out_predictions[:, 1])
+        self.constant_c = c
 
         print(c)
         plt.figure()
