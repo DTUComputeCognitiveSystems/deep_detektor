@@ -19,11 +19,11 @@ from datetime import datetime
 
 
 def single_training(tensor_provider, model,
-                    n_test_programs=1, eval_functions=None, return_predictions=False):
+                    test_programs, eval_functions=None, return_predictions=False):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param DetektorModel model: Model-class to train and test.
-    :param int n_test_programs: Number of test-programs to use.
+    :param list test_programs: List of program IDs used for test-programs
     :param list[Evaluation] eval_functions: List of evaluation functions used to test models.
     :param bool return_predictions: If True, the method stores all model test-predictions and returns them as well.
                                     Can be used to determine whether errors are the same across models.
@@ -39,7 +39,6 @@ def single_training(tensor_provider, model,
 
     # Get program ids and number of programs
     program_ids = np.array(list(zip(*keys))[0])
-    unique_programs = np.array(sorted(set(program_ids)))
 
     # Initialize array for holding results
     special_results_train = dict()
@@ -57,9 +56,6 @@ def single_training(tensor_provider, model,
                                                dims=["Model", "Evaluation"],
                                                coords=dict(Evaluation=evaluation_names,
                                                            Model=[model.name]))
-
-    # Select test-programs
-    test_programs = np.random.choice(unique_programs, size=n_test_programs, replace=False)
 
     # Get split indices
     test_idx = 0
@@ -180,6 +176,7 @@ if __name__ == "__main__":
     #     results_path=results_path,
     #     n_jobs=-1
     # )
+    n_test_programs = 2
     n_batches = 2000
     learning_rates = linear_geometric_curve(n=n_batches,
                                             starting_value=1e-2,
@@ -192,7 +189,8 @@ if __name__ == "__main__":
         n_batches=n_batches,
         recurrent_units=50,
         linear_units=[],
-        learning_rate_progression=learning_rates
+        learning_rate_progression=learning_rates,
+        name_formatter="{}_hey"
     )
     # a_model = LogisticRegression(
     #     tensor_provider=the_tensor_provider,
@@ -208,18 +206,25 @@ if __name__ == "__main__":
     #      tensor_provider=the_tensor_provider,
     # )
 
-    # Get specific path
-    results_path = a_model.results_path
+    # Create model-specific path and ensure directory
+    results_path = a_model.create_model_path(results_path=results_path)
     shutil.rmtree(str(results_path))
     ensure_folder(results_path)
     redirect_stdout_to_file(Path(results_path, "log.txt"))
     print("Script starting at: {}".format(datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
 
+    # Select test-programs
+    unique_programs = np.array(sorted(set(the_tensor_provider.accessible_annotated_program_ids)))
+    test_programs = np.random.choice(unique_programs, size=n_test_programs, replace=False)
+
     # Run training on a single model
     results_train, results_test, \
-    s_results_train, s_results_test, \
-    model_summary = single_training(tensor_provider=the_tensor_provider,
-                                    model=a_model)  # type: xr.DataArray
+        s_results_train, s_results_test, \
+        model_summary = single_training(
+            tensor_provider=the_tensor_provider,
+            model=a_model,
+            test_programs=test_programs
+        )  # type: xr.DataArray
 
     # Print mean results
     results_train = results_train._to_dataset_split("Model").to_dataframe()

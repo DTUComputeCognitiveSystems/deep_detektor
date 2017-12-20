@@ -26,10 +26,13 @@ class DetektorModel:
 
         # Set path
         if results_path is not None:
-            self.results_path = Path(results_path, self.name)
+            self.results_path = self.create_model_path(results_path=results_path)
             ensure_folder(self.results_path)
         else:
             self.results_path = None
+
+    def create_model_path(self, results_path):
+        return Path(results_path, self.name)
 
     @property
     def name(self):
