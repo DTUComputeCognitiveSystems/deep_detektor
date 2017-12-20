@@ -77,13 +77,16 @@ class PULogisticRegressionSK(DetektorModel):
         self.model.fit(x[train_idx], y[train_idx])
         hold_out_predictions = self.model.predict_proba(x[positive_val_idx])
         self.constant_c = np.mean(hold_out_predictions[:, 1])
-        print('Estimated P( labeled| Positive) = %2.4f '%(c))
+        print('Estimated P( labeled| Positive) = %2.4f '%(self.constant_c))
+
         # 2. Scale probabilities, so 0.5 it the optimal decision boundary?
         # 3. Duplicate negative examples, give all examples a probability weight
         x_double_unlabeled = np.concatenate((x, x[y == False, :]), axis=0)
         # Calculate P(positive | x, unlabeled)
         w_unlabeled = self.model.predict_proba(x[y == False, :])[:, 1]
-        w_unlabeled = (1.0 - self.constant_c) / self.constant_c * (w_unlabeled / (1.0 - w_unlabeled))
+        conflicted_idx = w_unlabeled < 0.999
+        w_unlabeled[conflicted_idx] = (1.0 - self.constant_c) / self.constant_c\
+                                      *(w_unlabeled[conflicted_idx] / (1.0 - w_unlabeled[conflicted_idx]))
 
         y_new = np.ones(x[y == False, :].shape[0], ) * True
         weights_old = np.ones(x.shape[0], )
