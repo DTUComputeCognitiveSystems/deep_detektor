@@ -368,10 +368,15 @@ class TensorProvider:
 
         return concatenated
 
-    def load_labels(self, data_keys_or_idx):
+    def load_labels(self, data_keys_or_idx, convert_none_to_false=True):
         data = self.load_data_tensors(data_keys_or_idx=data_keys_or_idx,
                                       labels=True)
-        return data["labels"]
+
+        labels = data["labels"]
+        if convert_none_to_false:
+            labels = np.array([val if val is not None else False for val in labels])
+
+        return labels
 
     def load_tokens(self, data_keys_or_idx):
         data_keys = self._convert_to_keys(data_keys_or_idx)
@@ -595,6 +600,20 @@ if __name__ == "__main__":
         the_tensor_provider.tokens,
         the_tensor_provider.pos_tags
     ]]), "Not all resources in TensorProvider has same length."
+
+    ###########
+    # Test that all annotated keys have a label and that all non-annotated do not
+
+    print("\nTesting whether all annotated keys have a label and that all non-annotated do not")
+    annotated_keys = the_tensor_provider.accessible_annotated_keys
+    unannotated_keys = list(set(the_tensor_provider.accessible_keys).difference(set(annotated_keys)))
+
+    annotated_labels = the_tensor_provider.load_labels(annotated_keys, convert_none_to_false=False)
+    unannotated_labels = the_tensor_provider.load_labels(unannotated_keys, convert_none_to_false=False)
+    assert all([val is None for val in unannotated_labels])
+    assert not any([val is None for val in annotated_labels])
+
+    print("Test SUCCESSFUL\n")
 
     ###########
     # Test difference in data for all samples in program
