@@ -64,46 +64,37 @@ class PULogisticRegressionSK(DetektorModel):
 
         # 1. Train model to learn c = P(s=1|y=1)
         positive_idx = np.where(y == True)[0]
-        N_holdout = int(np.round(len(positive_idx) * test_size))
+        n_holdout = int(np.round(len(positive_idx) * test_size))
         perm_idx = np.random.permutation(positive_idx)
 
         positive_train_idx = np.ones([len(y), ]).astype(bool)
-        positive_train_idx[perm_idx[N_holdout:]] = False
+        positive_train_idx[perm_idx[n_holdout:]] = False
         positive_val_idx = np.zeros([len(y), ]).astype(bool)
-        positive_val_idx[perm_idx[:N_holdout]] = True
+        positive_val_idx[perm_idx[:n_holdout]] = True
 
         train_idx = (y == False) + positive_train_idx
 
-        print('%i == %i' % (N_holdout, sum(positive_val_idx)))
-
         self.model.fit(x[train_idx], y[train_idx])
         hold_out_predictions = self.model.predict_proba(x[positive_val_idx])
-        c = np.mean(hold_out_predictions[:, 1])
-        self.constant_c = c
-
-        print(c)
-        plt.figure()
-        plt.hist(hold_out_predictions[:, 1], bins=20)
+        self.constant_c = np.mean(hold_out_predictions[:, 1])
+        print('Estimated P( labeled| Positive) = %2.4f '%(c))
         # 2. Scale probabilities, so 0.5 it the optimal decision boundary?
         # 3. Duplicate negative examples, give all examples a probability weight
-        new_x = np.concatenate((x, x[y == False, :]), axis=0)
+        x_double_unlabeled = np.concatenate((x, x[y == False, :]), axis=0)
+        # Calculate P(positive | x, unlabeled)
         w_unlabeled = self.model.predict_proba(x[y == False, :])[:, 1]
         w_unlabeled = (1.0 - self.constant_c) / self.constant_c * (w_unlabeled / (1.0 - w_unlabeled))
 
-        y_old = y.copy()
         y_new = np.ones(x[y == False, :].shape[0], ) * True
         weights_old = np.ones(x.shape[0], )
-        weights_old[y == False] = 1.0 - w_unlabeled
-        weights_new = w_unlabeled
+        weights_old[y == False] = 1.0 - w_unlabeled # P(negative | x, unlabeled)
+
+        y_pu = np.concatenate((y, y_new), axis=0)
+        w_pu = np.concatenate((weights_old, w_unlabeled), axis=0)
         # 4. Train new classifier
-        y_pu = np.concatenate((y_old, y_new), axis=0)
-        w_pu = np.concatenate((weights_old, weights_new), axis=0)
 
-        self.model.fit(new_x, y_pu, sample_weight=w_pu)
+        self.model.fit(x_double_unlabeled, y_pu, sample_weight=w_pu)
         # 5. If necessary scale probabilities
-
-        plt.figure()
-        plt.hist(hold_out_predictions[:, 1], bins=20)
 
         if verbose:
             print(verbose * " " + "Optimization Finished!")
@@ -115,9 +106,7 @@ class PULogisticRegressionSK(DetektorModel):
 
         # Do prediction
         predictions = self.model.predict_proba(input_tensor)
-        predictions = predictions[:, 1]  # / self.constant_c
-        # predictions = (1-self.constant_c)/self.constant_c * \
-        #              (predictions/(1-predictions))
+        predictions = predictions[:, 1]
 
         # Binary conversion
         binary_predictions = predictions > 0.5
