@@ -1,5 +1,8 @@
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
+from util.utilities import save_fig
 
 
 def linear_geometric_curve(n, starting_value, end_value, geometric_component=0.5, constant_at=1.0, geometric_end=1.0):
@@ -29,6 +32,7 @@ def linear_geometric_curve(n, starting_value, end_value, geometric_component=0.5
     geometric_values = np.geomspace(start=starting_value * geometric_component,
                                     stop=end_value * 1e-3,
                                     num=geometric_length)
+    geometric_values = geometric_values - geometric_values[n-1] + end_value * geometric_component
 
     # Overall array
     curve = np.zeros(n)
@@ -111,10 +115,10 @@ if __name__ == "__main__":
 
     # Make learning rates
     learning_rates = linear_geometric_curve(n=n_batches,
-                                            starting_value=1e-11,
-                                            end_value=1e-22,
+                                            starting_value=1e-2,
+                                            end_value=1e-8,
                                             geometric_component=3. / 4,
-                                            geometric_end=1)
+                                            geometric_end=1.4)
 
     validation_x = range(0, n_batches, 5)
     validation = [val / n_batches for val in validation_x]
@@ -130,4 +134,4 @@ if __name__ == "__main__":
         x_label="Batch"
     )
 
-
+    save_fig(Path("delete"))
