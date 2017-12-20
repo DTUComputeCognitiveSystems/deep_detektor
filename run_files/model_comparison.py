@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import shutil
 
-from models.baselines import LogisticRegression, LogisticRegressionSK
+from models.baselines import LogisticRegression, LogisticRegressionSK, SVMSK
 from models.recurrent.basic_recurrent import BasicRecurrent
 from project_paths import ProjectPaths
 from run_files.single_train import single_training
@@ -133,6 +133,37 @@ if __name__ == "__main__":
             name_formatter="{}_25_rnn_10_lin_drop",
             linear_units=[10],
             dropouts=[0]
+        ),
+        # Baselines
+        LogisticRegressionSK(
+            tensor_provider=the_tensor_provider,
+            use_bow=True,
+            use_embedsum=True,
+            tol=1e-7,
+            max_iter=500,
+            name_formatter="{}_bow_and_embedsum"
+        ),
+        LogisticRegressionSK(
+            tensor_provider=the_tensor_provider,
+            use_bow=True,
+            use_embedsum=False,
+            tol=1e-7,
+            max_iter=500,
+            name_formatter="{}_bow"
+        ),
+        LogisticRegressionSK(
+            tensor_provider=the_tensor_provider,
+            use_bow=False,
+            use_embedsum=True,
+            tol=1e-7,
+            max_iter=500,
+            name_formatter="{}_embedsum"
+        ),
+        SVMSK(
+            tensor_provider=the_tensor_provider,
+            use_bow=True,
+            use_embedsum=True,
+            name_formatter="{}_bow_and_embedsum"
         ),
     ]
 
