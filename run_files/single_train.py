@@ -7,13 +7,14 @@ import xarray as xr
 from models.model_base import DetektorModel
 from project_paths import ProjectPaths
 from evaluations.area_roc import ROC, plot_roc
-from models.baselines import LogisticRegression, MLP, LogisticRegressionSK, SVMSK
+from models.baselines import LogisticRegression, MLP, LogisticRegressionSK, SVMSK, GaussianProcess
 from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositives, FalseNegatives, Samples, \
     AreaUnderROC
 from models.recurrent.basic_recurrent import BasicRecurrent
 from models.PositiveLearningElkan.pu_learning import PULogisticRegressionSK
 from util.tensor_provider import TensorProvider
-from util.utilities import ensure_folder, save_fig
+from util.utilities import ensure_folder, save_fig, redirect_stdout_to_file, close_stdout_file
+from datetime import datetime
 
 
 def single_training(tensor_provider, model_class,
@@ -94,6 +95,7 @@ def single_training(tensor_provider, model_class,
               verbose=2)
 
     # Predict on training-data
+    print("\tPredicting on training data")
     y_pred_train, y_pred_train_binary = model.predict(tensor_provider=tensor_provider,
                                                       predict_idx=train_idx)
     y_pred_train = np.squeeze(y_pred_train)
@@ -102,6 +104,7 @@ def single_training(tensor_provider, model_class,
     train_predictions = y_pred_train
 
     # Predict on test-data for performance
+    print("\tPredicting on test data")
     y_pred, y_pred_binary = model.predict(tensor_provider=tensor_provider,
                                           predict_idx=test_idx)
     y_pred = np.squeeze(y_pred)
@@ -111,6 +114,7 @@ def single_training(tensor_provider, model_class,
     test_predictions = y_pred
 
     # Evaluate with eval_functions
+    print("\tRunning evaluation functions")
     evaluation_nr = 0
     for evalf in eval_functions:
         # Training evaluation
@@ -144,6 +148,7 @@ def single_training(tensor_provider, model_class,
                                                                              y_pred_binary=y_pred_binary)
 
     # Save model
+    print("\tSaving model")
     model.save_model()
 
     # Return list
@@ -158,6 +163,7 @@ def single_training(tensor_provider, model_class,
 
 
 if __name__ == "__main__":
+
     # Initialize tensor-provider (data-source)
     the_tensor_provider = TensorProvider(verbose=True)
 
@@ -165,12 +171,20 @@ if __name__ == "__main__":
     results_path = Path(ProjectPaths.results, "single_train")
 
     # Choose model
+    # model = GaussianProcess(
+    #     tensor_provider=the_tensor_provider,
+    #     use_bow=True,
+    #     use_embedsum=True,
+    #     verbose=True,
+    #     results_path=results_path,
+    #     n_jobs=-1
+    # )
     model = BasicRecurrent(
         tensor_provider=the_tensor_provider,
         results_path=results_path,
         n_batches=10000,
-        recurrent_units=500,
-        linear_units=(500,250)
+        recurrent_units=50,
+        linear_units=[]
     )
     # model = LogisticRegression(
     #     tensor_provider=the_tensor_provider,
@@ -186,9 +200,12 @@ if __name__ == "__main__":
     #      tensor_provider=the_tensor_provider,
     # )
 
-    # Clear out results folder content
-    if model.results_path is not None:
-        shutil.rmtree(str(model.results_path))
+    # Get specific path
+    results_path = model.results_path
+    shutil.rmtree(str(results_path))
+    ensure_folder(results_path)
+    redirect_stdout_to_file(Path(results_path, "log.txt"))
+    print("Script starting at: {}".format(datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
 
     # Run training on a single model
     results_train, results_test, \
@@ -226,3 +243,6 @@ if __name__ == "__main__":
                  fp_rate=negative_rate,
                  title="{} ROC Test".format(model.name()))
         save_fig(Path(results_path, "ROC_Test"))
+
+    print("Script ended at: {}".format(datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
+    close_stdout_file()

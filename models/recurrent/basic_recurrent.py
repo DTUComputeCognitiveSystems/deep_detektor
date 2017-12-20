@@ -18,7 +18,7 @@ class BasicRecurrent(DetektorModel):
                  n_batches=10, batch_size=64,
                  display_step=1, results_path=None, learning_rate_progression=1e-3,
                  optimizer_class=tf.train.RMSPropOptimizer,
-                 recurrent_neuron_type=tf.nn.rnn_cell.LSTMCell):
+                 recurrent_neuron_type=tf.nn.rnn_cell.GRUCell):
         """
         :param TensorProvider tensor_provider: Provides data for model.
         :param list | tuple linear_units: Number of units in fully-connected layers.
@@ -70,7 +70,7 @@ class BasicRecurrent(DetektorModel):
             # Model inputs
             self.inputs = tf.placeholder(tf.float32, shape=[None, None, self.num_features], name='input')
             self.input_lengths = tf.placeholder(tf.int32, shape=[None], name='input_length')
-            self.truth = tf.placeholder(tf.float32, [None, ])
+            self.truth = tf.placeholder(tf.float32, [None, 2], name="truth")
 
             # Recurrent layer
             with tf.name_scope("recurrent_layer"):
@@ -109,13 +109,13 @@ class BasicRecurrent(DetektorModel):
 
             # Output layer
             with tf.name_scope("output_layer"):
-                self._ffout_m = tf.Variable(tf.truncated_normal([self.linear_units[-1], 1],
-                                                                stddev=np.sqrt(self.linear_units[-1])),
+                self._ffout_m = tf.Variable(tf.truncated_normal([last_units, 2],
+                                                                stddev=np.sqrt(last_units)),
                                             name="ffout_m")
                 self._ffout_b = tf.Variable(tf.truncated_normal([1], stddev=1),
                                             name="ffout_b")
-                self._ffout_prod = tf.matmul(self.feedforward_activations[-1], self._ffout_m)
-                self._ffout_a = tf.transpose(self._ffout_prod + self._ffout_b)
+                self._ffout_prod = tf.matmul(c_input, self._ffout_m)
+                self._ffout_a = self._ffout_prod + self._ffout_b
                 self.prediction = tf.nn.softmax(self._ffout_a, name="output")
 
             # Cost-function
@@ -199,6 +199,7 @@ class BasicRecurrent(DetektorModel):
                                          p=sample_weights)
             c_inputs = input_tensor[c_indices, :, :]
             c_truth = y[c_indices]
+            c_truth = np.stack([c_truth == 0, c_truth == 1], axis=1) * 1
             c_input_lengths = input_lengths[c_indices]
 
             # Feeds
@@ -215,7 +216,8 @@ class BasicRecurrent(DetektorModel):
                 fetch.append(self._summary_merged)
 
             # Run batch training
-            _, c, *summary = self._sess.run(fetches=fetch, feed_dict=feed_dict)
+            _, c, *summary = self._sess.run(fetches=fetch,
+                                            feed_dict=feed_dict)
 
             # Tensorboard summaries
             if self.results_path is not None:
@@ -290,3 +292,6 @@ class BasicRecurrent(DetektorModel):
         binary_predictions = predictions > 0.5
 
         return predictions, binary_predictions
+
+    def summary_to_string(self):
+        return self.autosummary_str()
