@@ -13,6 +13,7 @@ import tensorflow as tf
 
 from models.speller.recurrent_speller import RecurrentSpeller
 from project_paths import ProjectPaths
+from util.utilities import save_fig, ensure_folder, redirect_stdout_to_file, close_stdout_file
 
 
 class TensorProvider:
@@ -51,7 +52,7 @@ class TensorProvider:
         if verbose:
             print("Loading keys.")
         self.labels = dict()
-        self.keys = []
+        self._keys = []
         program_ids = set()
         database_path = Path(ProjectPaths.tensor_provider, "all_programs.db")
         connection = sqlite3.connect(str(database_path))
@@ -60,7 +61,7 @@ class TensorProvider:
         for row in rows:
             key = (row[0], row[1])
             program_ids.add(row[0])
-            self.keys.append(key)
+            self._keys.append(key)
             self.labels[key] = None
         cursor.close()
         connection.close()
@@ -146,13 +147,21 @@ class TensorProvider:
     def set_bow_vocabulary(self, vocabulary=None):
         self.bow_vocabulary = self._complete_bow_vocabulary if vocabulary is None else vocabulary
 
+    ####
+    # Program IDs
+
     @property
     def off_limits_programs(self):
         return 8720741, 9284846, 8665813
 
     @property
     def program_ids(self):
-        return self._program_ids
+        raise ValueError("You are not allowed to access this data!!")
+        # return self._program_ids
+
+    @property
+    def accessible_program_ids(self):
+        return [val for val in self._program_ids if val not in self.off_limits_programs]
 
     @property
     def annotated_program_ids(self):
@@ -162,6 +171,18 @@ class TensorProvider:
     @property
     def accessible_annotated_program_ids(self):
         return [val for val in self._annotated_program_ids if val not in self.off_limits_programs]
+
+    ####
+    # Keys
+
+    @property
+    def keys(self):
+        raise ValueError("You are not allowed to access this data!!")
+        # return self._keys
+
+    @property
+    def accessible_keys(self):
+        return [val for val in self._keys if val[0] not in self.off_limits_programs]
 
     @property
     def annotated_keys(self):
@@ -273,7 +294,7 @@ class TensorProvider:
 
     def _convert_to_keys(self, data_keys_or_idxs):
         if isinstance(data_keys_or_idxs[0], (int, np.int32, np.int64)):
-            data_keys_or_idxs = [self.keys[val] for val in data_keys_or_idxs]
+            data_keys_or_idxs = [self._keys[val] for val in data_keys_or_idxs]
 
         return data_keys_or_idxs
 
@@ -356,38 +377,24 @@ class TensorProvider:
         data_keys = self._convert_to_keys(data_keys_or_idx)
         return [self.tokens[val] for val in data_keys]
 
-    def load_original_sentences(self, data_keys):
+    @staticmethod
+    def load_original_sentences(data_keys):
+        # Get relevant sentence numbers
+        relevant_sentences = [key[1] for key in data_keys]
 
         # Connect to database
         database_path = Path(ProjectPaths.tensor_provider, "all_programs.db")
         connection = sqlite3.connect(str(database_path))
         cursor = connection.cursor()
 
-        # Create temporary table
-        cursor.execute("CREATE TEMPORARY TABLE temporary (program_id INTEGER NOT NULL, sentence_id INTEGER NOT NULL)")
+        # Get all sentences with those numbers
+        cursor.execute("SELECT program_id, sentence_id, sentence FROM programs WHERE sentence_id IN {}"
+                       .format(tuple(relevant_sentences)))
 
-        # Insert queries
-        cursor.executemany("INSERT INTO temporary (program_id, sentence_id) VALUES (?, ?)", data_keys)
+        # Make a dictionary with results
+        results_dict = {(val[0], val[1]): val[2] for val in cursor.fetchall()}
 
-        # Select filtered data
-        cursor.execute(
-            """
-            SELECT sentence FROM programs
-            WHERE EXISTS(
-              SELECT * FROM temporary
-              WHERE temporary.program_id = programs.program_id and temporary.sentence_id = programs.sentence_id
-            )
-            """
-        )
-
-        # Get sentences
-        sentences = [val[0] for val in cursor.fetchall()]
-
-        # Close database
-        cursor.close()
-        connection.close()
-
-        return sentences
+        return [results_dict[key] for key in data_keys]
 
     def load_data_tensors(self, data_keys_or_idx, word_counts=False, char_counts=False,
                           word_embedding=False, word_embedding_success=False,
@@ -504,6 +511,11 @@ if __name__ == "__main__":
     sparse = {"bow"}
     plt.close("all")
 
+    # Save tests
+    results_dir = Path(ProjectPaths.results, "tensor_provider_tests")
+    ensure_folder(results_dir)
+    redirect_stdout_to_file(Path(results_dir, "log.txt"))
+
     # Initialize
     the_tensor_provider = TensorProvider(verbose=True)
 
@@ -539,6 +551,7 @@ if __name__ == "__main__":
         else:
             print("\t{} : Unknown type: {}".format(a_key, type(a_val).__name__))
 
+    fig_count = 0
     for a_key, tensor in test.items():
         if not isinstance(tensor, dict):
             plt.figure()
@@ -568,14 +581,110 @@ if __name__ == "__main__":
                     plt.xlabel(a_key)
                     plt.ylabel("Time")
             plt.suptitle(a_key)
+
+            save_fig(Path(results_dir, "figure_{}".format(fig_count)))
+            fig_count += 1
         else:
             print(a_key)
             print(test[a_key])
 
-    n = len(the_tensor_provider.keys)
+    n = len(the_tensor_provider._keys)
     assert all([len(a_val) == n for a_val in [
-        the_tensor_provider.keys,
+        the_tensor_provider._keys,
         the_tensor_provider.labels,
         the_tensor_provider.tokens,
         the_tensor_provider.pos_tags
     ]]), "Not all resources in TensorProvider has same length."
+
+    ###########
+    # Test difference in data for all samples in program
+
+    distances_tests = [
+        dict(word_embedding=True, pos_tags=True, char_embedding=True),
+        dict(word_embedding=True, pos_tags=False, char_embedding=False),
+        dict(word_embedding=False, pos_tags=True, char_embedding=False),
+        dict(word_embedding=False, pos_tags=False, char_embedding=True),
+    ]
+
+    # Elements keys
+    keys = list(sorted(the_tensor_provider.accessible_annotated_keys))
+
+    # Get program ids and number of programs
+    program_ids = np.array(list(zip(*keys))[0])
+    unique_programs = set(program_ids)
+
+    # Select test-programs and training-programs
+    test_programs = np.random.choice(list(unique_programs),
+                                     size=1,
+                                     replace=False)
+
+    # Get test-indices
+    test_idx = np.sum([program_ids == val for val in test_programs], axis=0)
+    test_idx = np.where(test_idx > 0.5)[0]
+
+    # Convert to keys
+    test_idx = [keys[val] for val in test_idx]
+
+    for distance_test_nr, settings in enumerate(distances_tests):
+        print("Distance test {}".format(distance_test_nr))
+
+        # Get data for keys
+        print("\tGetting data")
+        # TODO: Perhaps fetch data incrementally like in the comments below, to see if that causes problems.
+        # test_idx_copy = list(test_idx)
+        # data = []
+        # cut_size = int(len(test_idx) / 10)
+        # while test_idx_copy:
+        #     c_idx, test_idx_copy = test_idx_copy[:cut_size], test_idx_copy[cut_size:]
+        #     c_data = the_tensor_provider.load_concat_input_tensors(
+        #         data_keys_or_idx=c_idx,
+        #         **settings
+        #     )
+        #     data.append(c_data)
+        # data = np.concatenate(data, axis=1)
+        data = the_tensor_provider.load_concat_input_tensors(
+                data_keys_or_idx=test_idx,
+                **settings
+            )
+
+        print("\tPreparing")
+        # Reshape by stacking all dimensions for each data-point
+        # data: [samples, all_dimensions_and_time]
+        data = data.reshape((len(test_idx), -1))
+
+        # Broadcast to subtract all rows from all rows
+        # data_broad: [samples, 1, all_dimensions_and_time]
+        data_broad = data[:, None, :]
+
+        print("\tComputing difference")
+        # Compute difference between all rows
+        # difference: [samples, samples, all_dimensions_and_time]
+        difference = data - data_broad
+
+        print("\tSquaring difference")
+        # Square difference
+        # difference: [samples, samples, all_dimensions_and_time]
+        difference = np.square(difference)
+
+        print("\tComputing distances")
+        # Distances
+        # difference: [samples, samples]
+        distances = np.sqrt(difference.sum(2))
+
+        # Delete this massive object
+        del difference
+
+        print("\tPlotting figure")
+        # Plot the distance plot
+        plt.close("all")
+        plt.figure()
+        plt.imshow(distances)
+        plt.title("Distance between features of all samples in programs {}\n{}".format(test_programs,
+                                                                                       settings))
+        plt.xlabel("Dimensions: {}".format(the_tensor_provider.input_dimensions(**settings)))
+        print("\tSaving figure")
+        # Save figure
+        save_fig(Path(results_dir, "distances_{}".format(distance_test_nr)))
+
+    print("Done")
+    close_stdout_file()

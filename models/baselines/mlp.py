@@ -21,7 +21,6 @@ class MLP(DetektorModel):
         :param int training_epochs:
         :param bool verbose:
         """
-        super().__init__(results_path, tf_save=True)
 
         # Settings
         self.display_step = display_step
@@ -34,6 +33,9 @@ class MLP(DetektorModel):
         self.use_embedsum = use_embedsum
         self.batch_size = batch_size
         self.batch_strategy = batch_strategy
+
+        # Initialize super (and make automatic settings-summary)
+        super().__init__(results_path, save_type="tf")
 
         self.num_features = self.x = self.y = self.Wxz = self.bz = self.Wzy = self.by = self.z = self.pred = \
             self.cost = self.optimizer = None
@@ -72,7 +74,7 @@ class MLP(DetektorModel):
             # Run the initializer
             self._sess.run(tf.global_variables_initializer())
 
-    def fit(self, tensor_provider, train_idx, verbose=0):
+    def _fit(self, tensor_provider, train_idx, y, verbose=0):
         if verbose:
             print(verbose * " " + "Fitting {}".format(self.name()))
             verbose += 2
@@ -82,9 +84,6 @@ class MLP(DetektorModel):
                                                       bow=self.use_bow, embedding_sum=self.use_embedsum)
         if not isinstance(x, np.ndarray):
             x = x.todense()
-
-        # Load labels
-        y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
 
         # Training cycle
         for epoch in range(self.training_epochs):
@@ -136,13 +135,14 @@ class MLP(DetektorModel):
     def summary_to_string(self):
         result_str = ""
         result_str += self.name() + "\n"
-        result_str += "Num input features: %i\n" % self.num_features
+        result_str += "Num input features: %s\n" % self.num_features
         result_str += "Num hidden units: %i\n" % self.hidden_units
         result_str += "Class weights in cost-fun: (%f,%f)\n" % (self.class_weights[0], self.class_weights[1])
         result_str += "Learning rate: %f  \n" % self.learning_rate
         result_str += "Num training epochs: %i  \n" % self.training_epochs
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum
+        result_str += "Batch sttrategy: {} \n".format(self.batch_strategy)
         if self.batch_size is not None:
             result_str += "Batch Size: %i \n" % self.batch_size
         return result_str

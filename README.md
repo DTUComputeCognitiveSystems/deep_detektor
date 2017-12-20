@@ -26,3 +26,9 @@ Rules for ensuring runs of files:
         DeepFactData/                       <- From data-service
         DRDetektorAutomaticFactChecking/    <- From data-service
 ```
+
+Programs can be run by standing in the main directory `deep_detektor` and running command  
+```
+$ PYTHONPATH=. python run_files/single_train.py
+```  
+where `run_files/single_train.py` can of cause be replaced by a different wanted script.

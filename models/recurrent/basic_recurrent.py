@@ -7,16 +7,16 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 from util.tensor_provider import TensorProvider
-from util.learning_rate_utilities import linear_geometric_curve, primary_secondary_plot
+from util.learning_rate_utilities import primary_secondary_plot
 from util.utilities import save_fig, empty_folder
 from pathlib import Path
 
 
 class BasicRecurrent(DetektorModel):
-    def __init__(self, tensor_provider, recurrent_units=150, linear_units=(100, 40),
+    def __init__(self, tensor_provider, recurrent_units=20, linear_units=(10, 4),
                  word_embedding=True, pos_tags=True, char_embedding=True,
-                 n_batches=6000, batch_size=64,
-                 display_step=1, results_path=None, progressive_learning_rate=False,
+                 n_batches=10, batch_size=64,
+                 display_step=1, results_path=None, learning_rate_progression=1e-3,
                  optimizer_class=tf.train.RMSPropOptimizer,
                  recurrent_neuron_type=tf.nn.rnn_cell.LSTMCell):
         """
@@ -29,8 +29,10 @@ class BasicRecurrent(DetektorModel):
         :param int n_batches:
         :param int batch_size:
         :param int display_step:
+        :param float | list | np.ndarray learning_rate_progression:
+            float: The learning rate.
+            list | np.ndarray: Progressive learning rate. Must have len(learning_rate_progression) == n_batches
         """
-        super().__init__(results_path, tf_save=True)
 
         # For training
         self.n_batches = n_batches
@@ -38,7 +40,7 @@ class BasicRecurrent(DetektorModel):
         self.display_step = display_step
 
         # Settings
-        self.progressive_learning_rate = progressive_learning_rate
+        self.learning_rate_progression = learning_rate_progression
         self.use_char_embedding = char_embedding
         self.use_pos_tags = pos_tags
         self.use_word_embedding = word_embedding
@@ -46,6 +48,9 @@ class BasicRecurrent(DetektorModel):
         self.recurrent_units = recurrent_units
         self.optimizer_class = optimizer_class
         self.recurrent_neuron_type = recurrent_neuron_type
+
+        # Initialize super (and make automatic settings-summary)
+        super().__init__(results_path, save_type="tf")
 
         # Uninitialized fields
         self.num_features = self.inputs = self.input_lengths = self.truth = self._rec_cell = self.rec_cell_outputs = \
@@ -134,7 +139,7 @@ class BasicRecurrent(DetektorModel):
                     empty_folder(tensorboard_path)
                     self._summary_train_writer = tf.summary.FileWriter(str(tensorboard_path), self._sess.graph)
 
-    def fit(self, tensor_provider, train_idx, verbose=0):
+    def _fit(self, tensor_provider, train_idx, y, verbose=0):
         """
         :param TensorProvider tensor_provider:
         :param list train_idx:
@@ -163,41 +168,37 @@ class BasicRecurrent(DetektorModel):
                                                                  word_embedding=self.use_word_embedding,
                                                                  char_embedding=self.use_char_embedding,
                                                                  pos_tags=self.use_pos_tags)
-        output_truth = tensor_provider.load_labels(data_keys_or_idx=train_idx)
         input_lengths = tensor_provider.load_data_tensors(data_keys_or_idx=train_idx, word_counts=True)["word_counts"]
         train_idx = list(range(len(train_idx)))
 
         # Make learning rates
-        learning_rates = linear_geometric_curve(n=self.n_batches,
-                                                starting_value=1e-7,
-                                                end_value=1e-18,
-                                                geometric_component=3. / 4,
-                                                geometric_end=5)
-        if not self.progressive_learning_rate:
-            learning_rates[0] = 1e-3
+        if isinstance(self.learning_rate_progression, float):
+            learning_rates = [self.learning_rate_progression] * self.n_batches
+        else:
+            learning_rates = self.learning_rate_progression
 
         # Calc sample probability based on class-size
         # TODO: Move this to own function and implement a "batch_strategy" input
-        non_claim_if = 1.0 / sum(output_truth == 0)
-        claim_if = 1.0 / sum(output_truth == 1)
+        non_claim_if = 1.0 / sum(y == 0)
+        claim_if = 1.0 / sum(y == 1)
         sample_weights = np.empty((len(train_idx)))
-        sample_weights[output_truth == 0] = non_claim_if
-        sample_weights[output_truth == 1] = claim_if
+        sample_weights[y == 0] = non_claim_if
+        sample_weights[y == 1] = claim_if
         sample_weights = sample_weights / sum(sample_weights)  # normalize to yield probabilities
 
         # Run training batches
         costs = []
         batches = []
-        c_learning_rate = learning_rates[0]
         start_time = time()
         for batch_nr in range(self.n_batches):
-            if self.progressive_learning_rate:
-                c_learning_rate = learning_rates[batch_nr]
+            c_learning_rate = learning_rates[batch_nr]
 
-            c_indices = np.random.choice(train_idx, self.batch_size, replace=False,
+            c_indices = np.random.choice(train_idx,
+                                         self.batch_size,
+                                         replace=False,
                                          p=sample_weights)
             c_inputs = input_tensor[c_indices, :, :]
-            c_truth = output_truth[c_indices]
+            c_truth = y[c_indices]
             c_input_lengths = input_lengths[c_indices]
 
             # Feeds
@@ -243,12 +244,12 @@ class BasicRecurrent(DetektorModel):
                 # Print validation
                 if (batch_nr + 1) % self.display_step == 0 and verbose:
                     print(verbose * " ", end="")
-                    if self.progressive_learning_rate:
-                        print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}. learning_rate = {:.2e}"
-                    else:
+                    if isinstance(self.learning_rate_progression, float):
                         print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}."
+                    else:
+                        print_formatter = "Batch {: 8d} / {: 8d}. cost = {:10.2f}. learning_rate = {:.2e}"
 
-                    time_label = "{}, {:7f}s : ".format(datetime.now().strftime("%H:%M:%S"),
+                    time_label = "{}, {:7.2f}s : ".format(datetime.now().strftime("%H:%M:%S"),
                                                                 time() - start_time)
                     print(time_label + print_formatter
                           .format(batch_nr + 1,

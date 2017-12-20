@@ -18,7 +18,8 @@ from util.utilities import ensure_folder, save_fig
 
 def leave_one_program_out_cv(tensor_provider, model_list, path,
                              eval_functions=None, limit=None, return_predictions=False,
-                             save_ranked_sentences=True, save_full_predictions=True):
+                             save_ranked_sentences=True, save_full_predictions=True,
+                             save_model_weights=True):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param list[DetektorModel] model_list: List of model-classes for testing.
@@ -133,7 +134,13 @@ def leave_one_program_out_cv(tensor_provider, model_list, path,
                 with Path(path, "%s_predictions.txt"%program_names[program_nr]).open("w") as file:
                     all_sentences = tensor_provider.load_original_sentences(test_idx)
                     for r in range(len(all_sentences)):
-                        file.write("%.5f;%s\n"%(y_pred[r], all_sentences[r]))
+                        file.write("%i;%.5f;%s\n"%(y_true[r], y_pred[r], all_sentences[r]))
+
+            # Save model weights in case of logistic regression
+            if save_model_weights and model_name=="LogisticRegressionSKLEARN":
+                #TODO: Save most important weights in classification
+                print(' ')
+
 
             # Evaluate with eval_functions
             evaluation_nr = 0

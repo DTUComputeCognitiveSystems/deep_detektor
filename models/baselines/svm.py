@@ -3,6 +3,7 @@ from util.tensor_provider import TensorProvider
 from models.model_base import DetektorModel
 from sklearn.svm import SVC
 
+
 class SVMSK(DetektorModel):
     @classmethod
     def name(cls):
@@ -15,7 +16,6 @@ class SVMSK(DetektorModel):
         :param int training_epochs:
         :param bool verbose:
         """
-        super().__init__(None)
 
         # Settings
         self.display_step = display_step
@@ -23,7 +23,12 @@ class SVMSK(DetektorModel):
         self.use_bow = use_bow
         self.use_embedsum = use_embedsum
 
-        self.num_features = self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = None
+        self.num_features = None
+
+        # Initialize super (and make automatic settings-summary)
+        super().__init__(None)
+
+        self.x = self.y = self.W = self.b = self.pred = self.cost = self.optimizer = None
 
     def initialize_model(self, tensor_provider):
         # Get number of features
@@ -31,7 +36,7 @@ class SVMSK(DetektorModel):
                                                              embedding_sum=self.use_embedsum)
         self.model = SVC(verbose=self.verbose, probability=True)
 
-    def fit(self, tensor_provider, train_idx, verbose=0):
+    def _fit(self, tensor_provider, train_idx, y, verbose=0):
         if verbose:
             print(verbose * " " + "Fitting {}".format(self.name()))
             verbose += 2
@@ -44,9 +49,6 @@ class SVMSK(DetektorModel):
         # Fetch data
         if not isinstance(x, np.ndarray):
             x = x.todense()
-
-        # Load labels
-        y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
 
         # Training cycle
         self.model.fit(x, y)
@@ -70,7 +72,7 @@ class SVMSK(DetektorModel):
     def summary_to_string(self):
         result_str = ""
         result_str += self.name() + "\n"
-        result_str += "Num input features: %i\n" % self.num_features
+        result_str += "Num input features: %s\n" % self.num_features
         result_str += "Using BoW: %i  \n" % self.use_bow
         result_str += "Using Embedsum: %i  \n" % self.use_embedsum
         return result_str
