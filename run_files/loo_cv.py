@@ -12,6 +12,7 @@ from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositiv
 from evaluations.area_roc import plot_roc, ROC, plot_multiple_rocs, mean_rocs
 from models.baselines import MLP, LogisticRegression, LogisticRegressionSK
 from models.recurrent.basic_recurrent import BasicRecurrent
+from models.PositiveLearningElkan.pu_learning import PULogisticRegressionSK
 from util.tensor_provider import TensorProvider
 from util.utilities import ensure_folder, save_fig
 
@@ -211,8 +212,8 @@ if __name__ == "__main__":
 
     # Choose models
     models = [
-        LogisticRegressionSK(tensor_provider=the_tensor_provider)
-        # MLP(tensor_provider=the_tensor_provider)
+        #PULogisticRegressionSK(tensor_provider=the_tensor_provider)
+        MLP(tensor_provider=the_tensor_provider)
     ]
 
     # Run LOO-program

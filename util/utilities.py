@@ -4,6 +4,7 @@ from time import sleep
 
 import numpy as np
 import matplotlib.pyplot as plt
+import xarray as xr
 
 
 def get_dir(path):
@@ -152,3 +153,8 @@ def redirect_stdout_to_file(path):
 
     if not isinstance(sys.stdout, _STDOutRedirector):
         sys.stdout = _STDOutRedirector(sys.stdout, path)
+
+
+class SDataArray(xr.DataArray):
+    def to_dataset_split(self, dim):
+        return self._to_dataset_split(dim=dim)

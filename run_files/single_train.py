@@ -3,7 +3,6 @@ from pathlib import Path
 import pickle
 
 import numpy as np
-import xarray as xr
 
 from models.PositiveLearningElkan.pu_learning import PULogisticRegressionSK
 from models.model_base import DetektorModel
@@ -15,7 +14,7 @@ from evaluations import Accuracy, F1, TruePositives, TrueNegatives, FalsePositiv
 from models.recurrent.basic_recurrent import BasicRecurrent
 from util.learning_rate_utilities import linear_geometric_curve
 from util.tensor_provider import TensorProvider
-from util.utilities import ensure_folder, save_fig, redirect_stdout_to_file, close_stdout_file
+from util.utilities import ensure_folder, save_fig, redirect_stdout_to_file, close_stdout_file, SDataArray
 from datetime import datetime
 
 
@@ -25,17 +24,22 @@ def single_training(tensor_provider, model,
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param DetektorModel model: Model-class to train and test.
-    :param list test_programs: List of program IDs used for test-programs
+    :param list | np.ndarray test_programs: List of program IDs used for testing.
+    :param list | np.ndarray training_programs: List of program IDs used for training.
+    :param Path base_path: Path of directory where we can put results (in a subdirectory with the model's name).
     :param list[Evaluation] eval_functions: List of evaluation functions used to test models.
     :param bool return_predictions: If True, the method stores all model test-predictions and returns them as well.
                                     Can be used to determine whether errors are the same across models.
-    :return:
     """
     # Create model-specific path and ensure directory
     results_path = model.create_model_path(results_path=base_path)
     if results_path.is_dir():
         shutil.rmtree(str(results_path))
     ensure_folder(results_path)
+
+    # Write name
+    with Path(results_path, "name.txt").open("w") as file:
+        file.write(model.name)
 
     # Redirect prints to a file and denote script start-time
     redirect_stdout_to_file(Path(results_path, "log.txt"))
@@ -56,18 +60,18 @@ def single_training(tensor_provider, model,
     special_results_train = dict()
     evaluation_names = [val.name() for val in eval_functions if val.is_single_value]
     classification_results_train = np.full((1, len(evaluation_names)), np.nan)
-    classification_results_train = xr.DataArray(classification_results_train,
-                                                name="Training Results",
-                                                dims=["Model", "Evaluation"],
-                                                coords=dict(Evaluation=evaluation_names,
-                                                            Model=[model.name]))
+    classification_results_train = SDataArray(classification_results_train,
+                                              name="Training Results",
+                                              dims=["Model", "Evaluation"],
+                                              coords=dict(Evaluation=evaluation_names,
+                                                          Model=[model.name]))
     special_results_test = dict()
     classification_results_test = np.full((1, len(evaluation_names)), np.nan)
-    classification_results_test = xr.DataArray(classification_results_test,
-                                               name="Test Results",
-                                               dims=["Model", "Evaluation"],
-                                               coords=dict(Evaluation=evaluation_names,
-                                                           Model=[model.name]))
+    classification_results_test = SDataArray(classification_results_test,
+                                             name="Test Results",
+                                             dims=["Model", "Evaluation"],
+                                             coords=dict(Evaluation=evaluation_names,
+                                                         Model=[model.name]))
 
     # Get test-indices
     test_idx = np.sum([program_ids == val for val in test_programs], axis=0)
@@ -178,8 +182,8 @@ def single_training(tensor_provider, model,
     model_summary = model.summary_to_string()
 
     # Print mean results
-    results_train = classification_results_train._to_dataset_split("Model").to_dataframe()
-    results_test = classification_results_test._to_dataset_split("Model").to_dataframe()
+    results_train = classification_results_train.to_dataset_split("Model").to_dataframe()
+    results_test = classification_results_test.to_dataset_split("Model").to_dataframe()
     with Path(results_path, "results.txt").open("w") as file:
         file.write(model_summary + "\n\n")
         print("Training\n")
@@ -200,12 +204,12 @@ def single_training(tensor_provider, model,
     print(model_summary)
 
     # Plot ROC of training
-    roc_key = (a_model.name, "ROC")
+    roc_key = (model.name, "ROC")
     if roc_key in special_results_train:
         positive_rate, negative_rate = special_results_train[roc_key]
         plot_roc(tp_rate=positive_rate,
                  fp_rate=negative_rate,
-                 title="{} ROC Training".format(a_model.name))
+                 title="{} ROC Training".format(model.name))
         save_fig(Path(results_path, "ROC_Train"))
 
     # Plot ROC of test
@@ -213,7 +217,7 @@ def single_training(tensor_provider, model,
         positive_rate, negative_rate = special_results_test[roc_key]
         plot_roc(tp_rate=positive_rate,
                  fp_rate=negative_rate,
-                 title="{} ROC Test".format(a_model.name))
+                 title="{} ROC Test".format(model.name))
         save_fig(Path(results_path, "ROC_Test"))
 
     # Print ending
@@ -224,12 +228,11 @@ def single_training(tensor_provider, model,
 
 
 if __name__ == "__main__":
-
     # Initialize tensor-provider (data-source)
     the_tensor_provider = TensorProvider(verbose=True)
 
     # Results path
-    base_path = Path(ProjectPaths.results, "single_train")
+    used_base_path = Path(ProjectPaths.results, "single_train")
 
     # Choose model
     # model = GaussianProcess(
@@ -270,7 +273,7 @@ if __name__ == "__main__":
     #      tensor_provider=the_tensor_provider,
     # )
     a_model = PULogisticRegressionSK(
-         tensor_provider=the_tensor_provider,
+        tensor_provider=the_tensor_provider,
     )
 
     # Select test-programs
@@ -280,9 +283,9 @@ if __name__ == "__main__":
 
     # Run training on a single model
     single_training(
-            tensor_provider=the_tensor_provider,
-            model=a_model,
-            test_programs=used_test_programs,
-            training_programs=used_training_programs,
-            base_path=base_path
-        )
+        tensor_provider=the_tensor_provider,
+        model=a_model,
+        test_programs=used_test_programs,
+        training_programs=used_training_programs,
+        base_path=used_base_path
+    )
