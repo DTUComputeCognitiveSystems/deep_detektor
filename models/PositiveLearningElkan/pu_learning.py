@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from sklearn.linear_model import LogisticRegression as LogRegSK
 from sklearn.linear_model import SGDClassifier
-from sklearn.model_selection import StratifiedKFold, KFold
+from sklearn.model_selection import train_test_split, KFold
 from util.tensor_provider import TensorProvider
 from util.utilities import get_next_bacth
 
@@ -40,7 +40,7 @@ class PULogisticRegressionSK(DetektorModel):
         self.model = SGDClassifier(loss='log', tol=1e-5)
 
 
-    def fit(self, tensor_provider, train_idx, verbose=0):
+    def fit(self, tensor_provider, train_idx, verbose=0, test_size = 5):
         if verbose:
             print(verbose * " " + "Fitting {}".format(self.name()))
             verbose += 2
@@ -58,40 +58,35 @@ class PULogisticRegressionSK(DetektorModel):
         y = tensor_provider.load_labels(data_keys_or_idx=train_idx)
 
         # Training cycle
-        #self.model.fit(x,y)
 
-        #K=10
-        #cv = KFold(n_splits=K)
-        #c = []
-        #for train_idx, val_idx in cv.split(x, y):
-        #    self.model.fit(x[train_idx],y[train_idx])
-        #    hold_out_predictions = self.model.predict_proba(x[val_idx])
-        #
-        #    c.append(np.mean(hold_out_predictions[:,1] * (y[val_idx] == True)))
 
-        #print('Est. p(s=1 | x) for %i CV folds:'%(K))
-        #print(c)
-        #print('''mean(c) \t= {:1.4f} \nmedian(c) \t= {:1.4f} \nsd(c) \t= {:1.4f}'''.\
-        #      format(np.mean(c),np.median(c),np.sqrt(np.var(c))))
+        # 1. Train model to learn c = P(s=1|y=1)
+        positive_idx = np.where(y == True)
+        N_holdout = np.round(len(positive_idx)*test_size)
+        perm_idx = np.random.permutation(positive_idx)
 
-        #self.constant_c = np.median(c)
-        hold_out_ratio = 0.1
-        positives = np.where(y == True)[0]
-        hold_out_size = int(np.ceil(len(positives) * hold_out_ratio))
+        positive_train_idx = positive_idx.copy()
+        positive_train_idx[perm_idx[N_holdout:]] = False
+        positive_val_idx = positive_idx.copy()
+        positive_val_idx[perm_idx[:N_holdout]] = False
 
-        np.random.shuffle(positives)
-        hold_out = positives[:hold_out_size]
-        X_hold_out = x[hold_out, :]
-        X = np.delete(x, hold_out, 0)
-        y_c = np.delete(y, hold_out)
+        train_idx = (y==False) | positive_train_idx
 
-        self.model.fit(X, y_c)
+        print('%i == %i'%(N_holdout, sum(positive_val_idx)))
 
-        hold_out_predictions = self.model.predict_proba(X_hold_out)
-
+        self.model.fit(x[train_idx], y[train_idx])
+        hold_out_predictions = self.model.predict_proba(x[positive_val_idx])
         c = np.mean(hold_out_predictions[:, 1])
+
         print(c)
-        self.constant_c = c
+        plt.figure()
+        plt.hist(hold_out_predictions[:, 1], bins=20)
+        # 2. Scale probabilities, so 0.5 it the optimal decision boundary?
+        # 3. Duplicate negative examples, give all examples a probability weight
+        # 4. Train new classifier
+        # 5. If necessary scale probabilities
+
+
 
 
         new_x = np.concatenate((x, x[y == False, :]), axis=0)
