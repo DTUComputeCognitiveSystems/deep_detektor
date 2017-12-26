@@ -17,6 +17,7 @@ from pathlib import Path
 class BasicRecurrent(DetektorModel):
     def __init__(self, tensor_provider, recurrent_units=20, linear_units=(),
                  word_embedding=True, pos_tags=True, char_embedding=True,
+                 use_bow=False,
                  n_batches=10, batch_size=64,
                  display_step=1, results_path=None, learning_rate_progression=1e-3,
                  optimizer_class=tf.train.RMSPropOptimizer,
@@ -48,6 +49,8 @@ class BasicRecurrent(DetektorModel):
         self.use_char_embedding = char_embedding
         self.use_pos_tags = pos_tags
         self.use_word_embedding = word_embedding
+        self.use_bow = use_bow
+        self.use_static_features = any([self.use_bow])
         self.linear_units = linear_units
         self.recurrent_units = recurrent_units
         self.optimizer_class = optimizer_class
@@ -61,23 +64,29 @@ class BasicRecurrent(DetektorModel):
         self.learning_rate_progression = learning_rate_progression
 
         # Uninitialized fields
-        self.num_features = self.inputs = self.input_lengths = self.truth = self._rec_cell = self.rec_cell_outputs = \
+        self.num_recurrent_features = self.recurrent_inputs = self.input_lengths = self.truth = self._rec_cell = self.rec_cell_outputs = \
             self.rec_cell_state = self.feedforward_activations = self._ffout_m = self._ffout_b = self._ffout_prod = \
             self._ffout_a = self.prediction = self.cost = self.learning_rate = self.optimize_op = \
-            self._summary_merged = self._summary_train_writer = self.optimizer = self.is_training = None
+            self._summary_merged = self._summary_train_writer = self.optimizer = self.is_training = \
+            self.num_static_features = self.static_inputs = None
 
     def initialize_model(self, tensor_provider):
+        # Get number of static features
+        self.num_static_features = tensor_provider.input_dimensions(bow=self.use_bow)
+
         # Use model's graph
         with self._tf_graph.as_default():
             self.is_training = tf.placeholder(tf.bool, name="is_training")
 
             # Get number of features
-            self.num_features = tensor_provider.input_dimensions(word_embedding=self.use_word_embedding,
-                                                                 pos_tags=self.use_pos_tags,
-                                                                 char_embedding=self.use_char_embedding)
+            self.num_recurrent_features = tensor_provider.input_dimensions(word_embedding=self.use_word_embedding,
+                                                                           pos_tags=self.use_pos_tags,
+                                                                           char_embedding=self.use_char_embedding)
 
             # Model inputs
-            self.inputs = tf.placeholder(tf.float32, shape=[None, None, self.num_features], name='input')
+            self.static_inputs = tf.placeholder(tf.float32, [None, self.num_static_features], name="static_features")
+            self.recurrent_inputs = tf.placeholder(tf.float32, shape=[None, None, self.num_recurrent_features],
+                                                   name='recurrent_input')
             self.input_lengths = tf.placeholder(tf.int32, shape=[None], name='input_length')
             self.truth = tf.placeholder(tf.float32, [None, 2], name="truth")
 
@@ -85,7 +94,7 @@ class BasicRecurrent(DetektorModel):
             with tf.name_scope("recurrent_layer"):
                 self._rec_cell = self.recurrent_neuron_type(num_units=self.recurrent_units)
                 self.rec_cell_outputs, self.rec_cell_state = tf.nn.dynamic_rnn(cell=self._rec_cell,
-                                                                               inputs=self.inputs,
+                                                                               inputs=self.recurrent_inputs,
                                                                                sequence_length=self.input_lengths,
                                                                                dtype=tf.float32)
 
@@ -94,18 +103,27 @@ class BasicRecurrent(DetektorModel):
                 c_input = self.rec_cell_state[1]
             else:
                 c_input = self.rec_cell_state
+            last_dimensions = self.recurrent_units
 
             # Optional dropout
             if 0 in self.dropouts:
                 c_input = tf.contrib.layers.dropout(c_input, is_training=self.is_training)
 
+            # Stack recurrent state and static features if needed
+            if self.use_static_features:
+                c_input = tf.concat(
+                    values=[c_input, self.static_inputs],
+                    axis=1,
+                    name="concatenated_features"
+                )
+                last_dimensions += self.num_static_features
+
             # Fully connected layers
             self.feedforward_activations = []
-            last_units = self.recurrent_units
             for layer_nr, n_units in enumerate(self.linear_units):
                 layer_nr += 1
                 with tf.name_scope("ff_layer{}".format(layer_nr)):
-                    feedforward_weights = tf.Variable(tf.truncated_normal([last_units, n_units],
+                    feedforward_weights = tf.Variable(tf.truncated_normal([last_dimensions, n_units],
                                                                           stddev=np.sqrt(n_units)),
                                                       name="ff{}_m".format(layer_nr))
                     feedforward_bias = tf.Variable(tf.truncated_normal([n_units], stddev=np.sqrt(n_units)),
@@ -124,12 +142,12 @@ class BasicRecurrent(DetektorModel):
 
                 # Next layer
                 c_input = self.feedforward_activations[-1]
-                last_units = n_units
+                last_dimensions = n_units
 
             # Output layer
             with tf.name_scope("output_layer"):
-                self._ffout_m = tf.Variable(tf.truncated_normal([last_units, 2],
-                                                                stddev=np.sqrt(last_units)),
+                self._ffout_m = tf.Variable(tf.truncated_normal([last_dimensions, 2],
+                                                                stddev=np.sqrt(last_dimensions)),
                                             name="ffout_m")
                 self._ffout_b = tf.Variable(tf.truncated_normal([1], stddev=1),
                                             name="ffout_b")
@@ -234,7 +252,7 @@ class BasicRecurrent(DetektorModel):
 
             # Feeds
             feed_dict = {
-                self.inputs: c_inputs,
+                self.recurrent_inputs: c_inputs,
                 self.input_lengths: c_input_lengths,
                 self.truth: c_truth,
                 self.learning_rate: c_learning_rate,
@@ -296,7 +314,7 @@ class BasicRecurrent(DetektorModel):
             plt.close("all")
             plt.ion()
 
-    def _run(self, tensor_provider, run_idx):
+    def _run(self, tensor_provider: TensorProvider, run_idx):
         """
         USE ONLY FOR DEBUGGING AND VERIFICATION!
         :param tensor_provider:
@@ -310,12 +328,22 @@ class BasicRecurrent(DetektorModel):
             self._sess.run(tf.global_variables_initializer())
 
         # Get run data
-        input_tensor = tensor_provider.load_concat_input_tensors(data_keys_or_idx=run_idx,
-                                                                 word_embedding=self.use_word_embedding,
-                                                                 char_embedding=self.use_char_embedding,
-                                                                 pos_tags=self.use_pos_tags)
+        recurrent_input_tensor = tensor_provider.load_concat_input_tensors(
+            data_keys_or_idx=run_idx,
+            word_embedding=self.use_word_embedding,
+            char_embedding=self.use_char_embedding,
+            pos_tags=self.use_pos_tags
+        )
         input_lengths = tensor_provider.load_data_tensors(data_keys_or_idx=run_idx, word_counts=True)["word_counts"]
         train_idx = list(range(len(run_idx)))
+
+        # Static input tensor
+        static_input_tensor = None
+        if self.use_static_features:
+            static_input_tensor = tensor_provider.load_concat_input_tensors(
+                data_keys_or_idx=run_idx,
+                bow=self.use_bow
+            )
 
         # Get truths of data
         y = tensor_provider.load_labels(data_keys_or_idx=run_idx)
@@ -327,9 +355,10 @@ class BasicRecurrent(DetektorModel):
 
         # Feeds
         feed_dict = {
-            self.inputs: input_tensor,
+            self.recurrent_inputs: recurrent_input_tensor,
             self.input_lengths: c_input_lengths,
             self.truth: c_truth,
+            self.static_inputs: static_input_tensor,
         }
 
         # Fetching
@@ -355,7 +384,7 @@ class BasicRecurrent(DetektorModel):
 
         # Feeds
         feed_dict = {
-            self.inputs: input_tensor,
+            self.recurrent_inputs: input_tensor,
             self.input_lengths: input_lengths,
             self.is_training: False
         }
@@ -384,7 +413,8 @@ if __name__ == "__main__":
 
     # Create model
     model = BasicRecurrent(
-        tensor_provider=the_tensor_provider
+        tensor_provider=the_tensor_provider,
+        use_bow=True
     )
     model.initialize_model(tensor_provider=the_tensor_provider)
 
