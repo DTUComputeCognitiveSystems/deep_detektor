@@ -38,6 +38,9 @@ class DetektorModel:
     def name(self):
         return self._name
 
+    def set_name(self, new_name):
+        self._name = new_name
+
     @classmethod
     def _class_name(cls):
         raise NotImplementedError
