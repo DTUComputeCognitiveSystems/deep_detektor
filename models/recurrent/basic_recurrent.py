@@ -1,5 +1,6 @@
 import warnings
 from time import time
+from typing import Iterable
 
 from models.model_base import DetektorModel
 import tensorflow as tf
@@ -20,7 +21,8 @@ class BasicRecurrent(DetektorModel):
                  display_step=1, results_path=None, learning_rate_progression=1e-3,
                  optimizer_class=tf.train.RMSPropOptimizer,
                  recurrent_neuron_type=tf.nn.rnn_cell.BasicRNNCell,
-                 name_formatter="{}", dropouts=()
+                 name_formatter="{}", dropouts=(),
+                 training_curve_y_limit=None
                  ):
         """
         :param TensorProvider tensor_provider: Provides data for model.
@@ -55,6 +57,7 @@ class BasicRecurrent(DetektorModel):
         # Initialize super (and make automatic settings-summary)
         super().__init__(results_path, save_type="tf", name_formatter=name_formatter)
 
+        self.training_curve_y_limit = training_curve_y_limit
         self.learning_rate_progression = learning_rate_progression
 
         # Uninitialized fields
@@ -140,12 +143,23 @@ class BasicRecurrent(DetektorModel):
                     self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.truth,
                                                                                        logits=self._ffout_a))
                     tf.summary.scalar('cost', self.cost)
-
                 # Gradient Descent
                 with tf.name_scope("Optimizer"):
                     self.learning_rate = tf.placeholder(shape=(), dtype=tf.float32, name="learning_rate")
+                    tf.summary.scalar("learning_rate", self.learning_rate)
+
+                    # Create optimizer
                     self.optimizer = self.optimizer_class(self.learning_rate)
-                    self.optimize_op = self.optimizer.minimize(self.cost)
+
+                    # Extract gradients for each variable
+                    grads_and_vars = self.optimizer.compute_gradients(self.cost)
+
+                    # Gradients summary
+                    for grad, var in grads_and_vars:
+                        tf.summary.histogram(var.name.replace(":", "_") + '/grad', grad)
+
+                    # Apply gradients for optimization operator
+                    self.optimize_op = self.optimizer.apply_gradients(grads_and_vars)
 
                 # Merge summaries
                 self._summary_merged = self._summary_train_writer = None
@@ -256,7 +270,8 @@ class BasicRecurrent(DetektorModel):
                         primary_label="Cost",
                         secondary_label="Learning Rate",
                         x_label="Batch",
-                        title="BasicRecurrent: Cost and learning rate"
+                        title="BasicRecurrent: Cost and learning rate",
+                        primary_y_limit=self.training_curve_y_limit
                     )
                     save_fig(Path(self.results_path, "training_curve"), only_pdf=True)
 
