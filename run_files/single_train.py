@@ -1,6 +1,7 @@
 import shutil
 from pathlib import Path
 import pickle
+import tensorflow as tf
 
 import numpy as np
 
@@ -20,16 +21,22 @@ from datetime import datetime
 
 def single_training(tensor_provider, model,
                     test_programs, training_programs,
-                    base_path, eval_functions=None, return_predictions=False):
+                    base_path, eval_functions=None, return_predictions=False,
+                    programs_are_keys=False):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param DetektorModel model: Model-class to train and test.
-    :param list | np.ndarray test_programs: List of program IDs used for testing.
-    :param list | np.ndarray training_programs: List of program IDs used for training.
+    :param list | np.ndarray test_programs: List of program IDs or sentence-keys used for testing
+                                            (depending on programs_are_keys).
+    :param list | np.ndarray training_programs: List of program IDs or sentence-keys used for training.
+                                                (depending on programs_are_keys).
     :param Path base_path: Path of directory where we can put results (in a subdirectory with the model's name).
     :param list[Evaluation] eval_functions: List of evaluation functions used to test models.
     :param bool return_predictions: If True, the method stores all model test-predictions and returns them as well.
                                     Can be used to determine whether errors are the same across models.
+    :param bool programs_are_keys:
+        False: test_programs and training_programs are program numbers.
+        True: test_programs and training_programs are sentence KEYS (list of (program_id, sentence_id)-tuples).
     """
     # Create model-specific path and ensure directory
     results_path = model.create_model_path(results_path=base_path)
@@ -224,6 +231,10 @@ def single_training(tensor_provider, model,
     print("Script ended at: {}".format(datetime.now().strftime("%d-%m-%Y %H:%M:%S")))
     close_stdout_file()
 
+    # Write a file called done.txt to mark that the script is done
+    with Path(results_path, "done.txt").open("w") as file:
+        file.write("The deed is done. ")
+
     return tuple(returns)
 
 
@@ -244,21 +255,25 @@ if __name__ == "__main__":
     #     n_jobs=-1
     # )
     n_test_programs = 2
-    n_batches = 20
+    n_batches = 2000
     learning_rates = linear_geometric_curve(n=n_batches,
-                                            starting_value=1e-2,
-                                            end_value=1e-8,
+                                            starting_value=5e-4,
+                                            end_value=1e-10,
                                             geometric_component=3. / 4,
                                             geometric_end=5)
-    # a_model = BasicRecurrent(
-    #     tensor_provider=the_tensor_provider,
-    #     results_path=base_path,
-    #     n_batches=n_batches,
-    #     recurrent_units=50,
-    #     linear_units=[],
-    #     learning_rate_progression=learning_rates,
-    #     # name_formatter="{}_hey"
-    # )
+    a_model = BasicRecurrent(
+        tensor_provider=the_tensor_provider,
+        results_path=used_base_path,
+        n_batches=n_batches,
+        batch_size=64,
+        learning_rate_progression=learning_rates,
+        recurrent_units=400,
+        linear_units=[200],
+        name_formatter="{}_400_200_drop1",
+        dropouts=[1],
+        recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
+        training_curve_y_limit=1000
+    )
     # a_model = LogisticRegression(
     #     tensor_provider=the_tensor_provider,
     # )
@@ -272,9 +287,9 @@ if __name__ == "__main__":
     # a_model = LogisticRegressionSK(
     #      tensor_provider=the_tensor_provider,
     # )
-    a_model = PULogisticRegressionSK(
-        tensor_provider=the_tensor_provider,
-    )
+    # a_model = PULogisticRegressionSK(
+    #     tensor_provider=the_tensor_provider,
+    # )
 
     # Select test-programs
     unique_programs = np.array(sorted(set(the_tensor_provider.accessible_annotated_program_ids)))

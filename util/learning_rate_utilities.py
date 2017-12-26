@@ -52,7 +52,7 @@ def linear_geometric_curve(n, starting_value, end_value, geometric_component=0.5
 
 def primary_secondary_plot(primary_xs, primary_values, secondary_plots, x_limit,
                            secondary_colors=None, primary_label="", secondary_label="",
-                           x_label="", title="", grid=True):
+                           x_label="", title="", grid=True, primary_y_limit=None):
     if secondary_colors is None:
         secondary_colors = ["blue", "green", "red", "orange"]
 
@@ -79,7 +79,7 @@ def primary_secondary_plot(primary_xs, primary_values, secondary_plots, x_limit,
         ax1.grid('on')
 
     # Set limits
-    ax1.set_ylim(0, np.math.ceil(max(primary_values)))
+    ax1.set_ylim(0, np.math.ceil(max(primary_values)) if primary_y_limit is None else primary_y_limit)
     ax1.set_xlim(0, x_limit)
 
     ###
