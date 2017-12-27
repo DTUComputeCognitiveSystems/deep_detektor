@@ -276,7 +276,7 @@ if __name__ == "__main__":
         batch_size=64,
         learning_rate_progression=learning_rates,
         recurrent_units=400,
-        linear_units=[200],
+        feedforward_units=[200],
         dropouts=[1],
         recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
         training_curve_y_limit=1000
