@@ -380,7 +380,7 @@ class BasicRecurrent(DetektorModel):
         train_idx = list(range(len(run_idx)))
 
         # Static input tensor
-        static_input_tensor = None
+        static_input_tensor = [[]]
         if self.use_static_features:
             static_input_tensor = tensor_provider.load_concat_input_tensors(
                 data_keys_or_idx=run_idx,
@@ -427,7 +427,7 @@ class BasicRecurrent(DetektorModel):
         input_lengths = tensor_provider.load_data_tensors(data_keys_or_idx=predict_idx, word_counts=True)["word_counts"]
 
         # Get static features if wanted
-        static_input_tensor = None
+        static_input_tensor = [[]]
         if self.use_static_features:
             static_input_tensor = tensor_provider.load_concat_input_tensors(
                 data_keys_or_idx=predict_idx,
