@@ -22,12 +22,12 @@ class BasicRecurrent(DetektorModel):
             ("use_pos_tags", "POS"),
             ("use_char_embedding", "CE"),
             ("recurrent_units", "ru"),
-            ("linear_units", "lu"),
+            ("linear_units", "ffu"),
             ("recurrent_neuron_type", "neuron"),
             ("dropouts", "drop"),
         ]
 
-    def __init__(self, tensor_provider, recurrent_units=20, linear_units=(),
+    def __init__(self, tensor_provider, recurrent_units=20, feedforward_units=(),
                  word_embedding=True, pos_tags=True, char_embedding=True,
                  use_bow=False,
                  n_batches=10, batch_size=64,
@@ -39,17 +39,28 @@ class BasicRecurrent(DetektorModel):
                  ):
         """
         :param TensorProvider tensor_provider: Provides data for model.
-        :param list | tuple linear_units: Number of units in fully-connected layers.
         :param int recurrent_units: number of units in recurrent layer.
+        :param list | tuple feedforward_units: Number of units in fully-connected layers.
         :param bool word_embedding: Use word-embeddings as inputs for network.
         :param bool pos_tags: Use pos-tags as inputs for network.
         :param bool char_embedding: Use character-embeddings as inputs for network.
-        :param int n_batches:
-        :param int batch_size:
-        :param int display_step:
+        :param bool use_bow: Use BOW as static features (fed directly into the feedforward units).
+        :param int n_batches: Number of batches in training.
+        :param int batch_size: Size of batches.
+        :param int display_step: Step for displaying progress.
+        :param Path results_path: Path to put results into.
         :param float | list | np.ndarray learning_rate_progression:
             float: The learning rate.
             list | np.ndarray: Progressive learning rate. Must have len(learning_rate_progression) == n_batches
+        :param optimizer_class: Optimizer from TensorFlow.
+        :param recurrent_neuron_type: Recurrent neuron unit from TensorFlow.
+        :param str name_formatter: Formatter for name (not used anymore).
+        :param list | tuple dropouts: Layers with dropout.
+            -1: Put dropout on static features.
+             0: Put dropout on recurrent state.
+            >0: Put dropout on the respective fully connected layer.
+        :param int | None training_curve_y_limit: Limit the training curve-graph on the plot
+            (sometimes large values makes the graph useless).
         """
 
         # For training
@@ -63,7 +74,7 @@ class BasicRecurrent(DetektorModel):
         self.use_word_embedding = word_embedding
         self.use_bow = use_bow
         self.use_static_features = any([self.use_bow])
-        self.linear_units = linear_units
+        self.linear_units = feedforward_units
         self.recurrent_units = recurrent_units
         self.optimizer_class = optimizer_class
         self.recurrent_neuron_type = recurrent_neuron_type
@@ -101,6 +112,10 @@ class BasicRecurrent(DetektorModel):
                                                    name='recurrent_input')
             self.input_lengths = tf.placeholder(tf.int32, shape=[None], name='input_length')
             self.truth = tf.placeholder(tf.float32, [None, 2], name="truth")
+
+            # Dropout on static inputs
+            if -1 in self.dropouts:
+                self.static_inputs = tf.contrib.layers.dropout(self.static_inputs, is_training=self.is_training)
 
             # Recurrent layer
             with tf.name_scope("recurrent_layer"):
