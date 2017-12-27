@@ -32,15 +32,26 @@ class DetektorModel:
         else:
             self.results_path = None
 
-    def create_model_path(self, results_path, use_settings=True):
+    def create_model_path(self, results_path, use_settings=False, auto_enumerate=True):
+        path = Path(results_path, self.name)
         if use_settings:
-            return Path(results_path, self._generate_settings_file_name())
-        return Path(results_path, self.name)
+            path = Path(results_path, self.generate_settings_name())
+
+        if auto_enumerate:
+            new_path = Path(path.parent, path.name + "_01")
+            nr = 1
+            while new_path.exists():
+                nr += 1
+                new_path = Path(path.parent, path.name + "_{:02d}".format(nr))
+
+            path = new_path
+
+        return path
 
     def _attribute_name_list(self):
         return []
 
-    def _generate_settings_file_name(self):
+    def generate_settings_name(self):
         attribute_name_list = self._attribute_name_list()
 
         settings_list = []

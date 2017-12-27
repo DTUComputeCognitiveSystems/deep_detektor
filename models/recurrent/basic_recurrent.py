@@ -456,7 +456,7 @@ if __name__ == "__main__":
     )
     model.initialize_model(tensor_provider=the_tensor_provider)
 
-    print("Settings string: {}".format(model._generate_settings_file_name()))
+    print("Settings string: {}".format(model.generate_settings_name()))
 
     # Get some random data
     test_size = 2000

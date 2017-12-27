@@ -39,14 +39,14 @@ def single_training(tensor_provider, model,
         True: test_programs and training_programs are sentence KEYS (list of (program_id, sentence_id)-tuples).
     """
     # Create model-specific path and ensure directory
-    results_path = model.create_model_path(results_path=base_path)
-    if results_path.is_dir():
-        shutil.rmtree(str(results_path))
+    results_path = model.results_path
+    if results_path is None:
+        results_path = model.create_model_path(results_path=base_path)
     ensure_folder(results_path)
 
     # Write name
     with Path(results_path, "name.txt").open("w") as file:
-        file.write(model.name)
+        file.write(model.generate_settings_name())
 
     # Redirect prints to a file and denote script start-time
     redirect_stdout_to_file(Path(results_path, "log.txt"))
@@ -202,6 +202,13 @@ def single_training(tensor_provider, model,
     pickle.dump(results_train, Path(results_path, "results_train.p").open("wb"))
     pickle.dump(results_test, Path(results_path, "results_test.p").open("wb"))
 
+    # Basic settings
+    settings = dict()
+    if not programs_are_keys:
+        settings["test_programs"] = test_programs
+        settings["training_programs"] = training_programs
+    pickle.dump(settings, Path(results_path, "settings.p").open("wb"))
+
     # Print results for each data-set
     print("\nSingle training Results - TRAINING \n" + "-" * 75)
     print(results_train)
@@ -264,12 +271,12 @@ if __name__ == "__main__":
     a_model = BasicRecurrent(
         tensor_provider=the_tensor_provider,
         results_path=used_base_path,
+        use_bow=True,
         n_batches=n_batches,
         batch_size=64,
         learning_rate_progression=learning_rates,
         recurrent_units=400,
         linear_units=[200],
-        name_formatter="{}_400_200_drop1",
         dropouts=[1],
         recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
         training_curve_y_limit=1000
