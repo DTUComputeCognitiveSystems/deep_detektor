@@ -1,6 +1,7 @@
 import warnings
 from pathlib import Path
 import pickle
+from typing import Sized, Iterable
 
 from util.tensor_provider import TensorProvider
 import tensorflow as tf
@@ -31,8 +32,39 @@ class DetektorModel:
         else:
             self.results_path = None
 
-    def create_model_path(self, results_path):
+    def create_model_path(self, results_path, use_settings=False):
+        if use_settings:
+            return Path(results_path, self._generate_settings_file_name())
         return Path(results_path, self.name)
+
+    def _attribute_name_list(self):
+        return []
+
+    def _generate_settings_file_name(self):
+        attribute_name_list = self._attribute_name_list()
+
+        settings_list = []
+        for attribute, name, *special_handler in attribute_name_list:
+            value = getattr(self, attribute)
+
+            if isinstance(value, bool):
+                settings_list.append("{}".format(name) if value else "")
+            elif isinstance(value, (int, float)):
+                settings_list.append("{}-{}".format(name, value).replace(".", "'"))
+            elif isinstance(value, Sized) and isinstance(value, Iterable):
+                if len(value) == 0:
+                    settings_list.append("{}-{}".format(name, "|"))
+                else:
+                    settings_list.append("{}-{}".format(name,
+                                                        "_".join([str(val).replace(".", "'") for val in value])))
+            elif isinstance(value, type):
+                settings_list.append("{}-{}".format(name, value.__name__))
+            else:
+                raise ValueError("Can't handle type '{}' of field '{}'.".format(type(value).__name__, name))
+
+        settings_str = "_".join([self.name] + settings_list)
+
+        return settings_str
 
     @property
     def name(self):

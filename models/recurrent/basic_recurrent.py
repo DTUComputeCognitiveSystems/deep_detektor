@@ -1,6 +1,6 @@
 import warnings
 from time import time
-from typing import Iterable
+from typing import Iterable, Sized
 
 from models.model_base import DetektorModel
 import tensorflow as tf
@@ -15,6 +15,18 @@ from pathlib import Path
 
 
 class BasicRecurrent(DetektorModel):
+    def _attribute_name_list(self):
+        return [
+            ("use_bow", "BOW"),
+            ("use_word_embedding", "WE"),
+            ("use_pos_tags", "POS"),
+            ("use_char_embedding", "CE"),
+            ("recurrent_units", "ru"),
+            ("linear_units", "lu"),
+            ("recurrent_neuron_type", "neuron"),
+            ("dropouts", "drop"),
+        ]
+
     def __init__(self, tensor_provider, recurrent_units=20, linear_units=(),
                  word_embedding=True, pos_tags=True, char_embedding=True,
                  use_bow=False,
@@ -443,6 +455,8 @@ if __name__ == "__main__":
         use_bow=True
     )
     model.initialize_model(tensor_provider=the_tensor_provider)
+
+    print("Settings string: {}".format(model._generate_settings_file_name()))
 
     # Get some random data
     test_size = 2000
