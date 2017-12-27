@@ -22,7 +22,7 @@ from datetime import datetime
 def single_training(tensor_provider, model,
                     test_split, training_split,
                     base_path, eval_functions=None, return_predictions=False,
-                    programs_are_keys=False):
+                    split_is_keys=False):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param DetektorModel model: Model-class to train and test.
@@ -34,9 +34,9 @@ def single_training(tensor_provider, model,
     :param list[Evaluation] eval_functions: List of evaluation functions used to test models.
     :param bool return_predictions: If True, the method stores all model test-predictions and returns them as well.
                                     Can be used to determine whether errors are the same across models.
-    :param bool programs_are_keys:
-        False: test_programs and training_programs are program numbers.
-        True: test_programs and training_programs are sentence KEYS (list of (program_id, sentence_id)-tuples).
+    :param bool split_is_keys:
+        False: test_split and training_split are program numbers.
+        True: test_split and training_split are sentence KEYS (list of (program_id, sentence_id)-tuples).
     """
     # Create model-specific path and ensure directory
     results_path = model.results_path
@@ -75,7 +75,7 @@ def single_training(tensor_provider, model,
                                                          Model=[model.name]))
 
     # Check if split is in keys and not programs
-    if programs_are_keys:
+    if split_is_keys:
         train_idx = training_split
         test_idx = test_split
 
@@ -103,9 +103,14 @@ def single_training(tensor_provider, model,
     assert not set(test_idx).intersection(set(train_idx)), "Overlap between training and test set."
 
     # Report
-    print("Test programs {}, using {} training samples and {} test samples.".format(test_split,
-                                                                                    len(train_idx),
-                                                                                    len(test_idx)))
+    if not split_is_keys:
+        print("Test programs {}, using {} training samples and {} test samples."
+              .format(test_split,
+                      len(train_idx),
+                      len(test_idx)))
+    else:
+        print("Training and testing with specifically selected keys. {} training and {} test."
+              .format(len(train_idx), len(test_idx)))
 
     # Make and set BoW-vocabulary
     bow_vocabulary = tensor_provider.extract_programs_vocabulary(train_idx)
@@ -212,7 +217,7 @@ def single_training(tensor_provider, model,
 
     # Basic settings
     settings = dict()
-    if not programs_are_keys:
+    if not split_is_keys:
         settings["test_programs"] = test_split
         settings["training_programs"] = training_split
     else:
