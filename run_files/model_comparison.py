@@ -155,15 +155,15 @@ if __name__ == "__main__":
         ################
 
         for model_nr, a_model in enumerate(model_list):
-            print("\n\n" + "-"*100)
+            print("-" * 40)
             print("Model {}: {}\n".format(model_nr, a_model.name))
 
             # Run training on a single model
             single_training(
                 tensor_provider=the_tensor_provider,
                 model=a_model,
-                test_programs=used_test_programs,
-                training_programs=used_training_programs,
+                test_split=used_test_programs,
+                training_split=used_training_programs,
                 base_path=base_path
             )
             model_paths.append(a_model.create_model_path(base_path))

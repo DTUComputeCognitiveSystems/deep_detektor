@@ -20,15 +20,15 @@ from datetime import datetime
 
 
 def single_training(tensor_provider, model,
-                    test_programs, training_programs,
+                    test_split, training_split,
                     base_path, eval_functions=None, return_predictions=False,
                     programs_are_keys=False):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param DetektorModel model: Model-class to train and test.
-    :param list | np.ndarray test_programs: List of program IDs or sentence-keys used for testing
+    :param list | np.ndarray test_split: List of program IDs or sentence-keys used for testing
                                             (depending on programs_are_keys).
-    :param list | np.ndarray training_programs: List of program IDs or sentence-keys used for training.
+    :param list | np.ndarray training_split: List of program IDs or sentence-keys used for training.
                                                 (depending on programs_are_keys).
     :param Path base_path: Path of directory where we can put results (in a subdirectory with the model's name).
     :param list[Evaluation] eval_functions: List of evaluation functions used to test models.
@@ -57,12 +57,6 @@ def single_training(tensor_provider, model,
         eval_functions = [Accuracy(), F1(), TruePositives(), TrueNegatives(), FalsePositives(), FalseNegatives(),
                           Samples(), AreaUnderROC(), ROC()]
 
-    # Elements keys
-    keys = list(sorted(tensor_provider.accessible_annotated_keys))
-
-    # Get program ids and number of programs
-    program_ids = np.array(list(zip(*keys))[0])
-
     # Initialize array for holding results
     special_results_train = dict()
     evaluation_names = [val.name() for val in eval_functions if val.is_single_value]
@@ -80,22 +74,36 @@ def single_training(tensor_provider, model,
                                              coords=dict(Evaluation=evaluation_names,
                                                          Model=[model.name]))
 
-    # Get test-indices
-    test_idx = np.sum([program_ids == val for val in test_programs], axis=0)
-    test_idx = np.where(test_idx > 0.5)[0]
+    # Check if split is in keys and not programs
+    if programs_are_keys:
+        train_idx = training_split
+        test_idx = test_split
 
-    # Get test-indices
-    train_idx = np.sum([program_ids == val for val in training_programs], axis=0)
-    train_idx = np.where(train_idx > 0.5)[0]
+    # Otherwise use program-indices to get keys for training and test (the correct and default way)
+    else:
+        # Sentences keys
+        keys = list(sorted(tensor_provider.accessible_annotated_keys))
 
+        # Get program ids and number of programs
+        program_ids = np.array(list(zip(*keys))[0])
+
+        # Get test-indices
+        test_idx = np.sum([program_ids == val for val in test_split], axis=0)
+        test_idx = np.where(test_idx > 0.5)[0]
+
+        # Get test-indices
+        train_idx = np.sum([program_ids == val for val in training_split], axis=0)
+        train_idx = np.where(train_idx > 0.5)[0]
+
+        # Convert to keys
+        train_idx = [keys[val] for val in train_idx]
+        test_idx = [keys[val] for val in test_idx]
+
+    # Sanity check
     assert not set(test_idx).intersection(set(train_idx)), "Overlap between training and test set."
 
-    # Convert to keys
-    train_idx = [keys[val] for val in train_idx]
-    test_idx = [keys[val] for val in test_idx]
-
     # Report
-    print("Test programs {}, using {} training samples and {} test samples.".format(test_programs,
+    print("Test programs {}, using {} training samples and {} test samples.".format(test_split,
                                                                                     len(train_idx),
                                                                                     len(test_idx)))
 
@@ -205,8 +213,11 @@ def single_training(tensor_provider, model,
     # Basic settings
     settings = dict()
     if not programs_are_keys:
-        settings["test_programs"] = test_programs
-        settings["training_programs"] = training_programs
+        settings["test_programs"] = test_split
+        settings["training_programs"] = training_split
+    else:
+        settings["test_programs"] = "specific keys"
+        settings["training_programs"] = "specific keys"
     pickle.dump(settings, Path(results_path, "settings.p").open("wb"))
 
     # Print results for each data-set
@@ -307,7 +318,7 @@ if __name__ == "__main__":
     single_training(
         tensor_provider=the_tensor_provider,
         model=a_model,
-        test_programs=used_test_programs,
-        training_programs=used_training_programs,
+        test_split=used_test_programs,
+        training_split=used_training_programs,
         base_path=used_base_path
     )
