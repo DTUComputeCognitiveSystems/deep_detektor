@@ -11,8 +11,8 @@ from run_files.single_train import single_training
 from util.learning_rate_utilities import linear_geometric_curve
 from util.tensor_provider import TensorProvider
 
-# TODO: Make the single-train use the same programs everytime (easier comparison)
-# TODO: Make single_traing loop over a list of test-programs (like loov_cv)
+# TODO: Make the single-train use the same programs every time (easier comparison)
+# TODO: Make single_train loop over a list of test-programs (like loo_cv)
 # TODO: Make some of the scripts have the option of initializing the same model multiple times and train multiple times
 # TODO:     and then select the best model.
 
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # Settings
     n_test_programs = 2
-    n_runs = 2
+    n_runs = 4
 
     # Select test-programs
     unique_programs = np.array(sorted(set(the_tensor_provider.accessible_annotated_program_ids)))
@@ -65,8 +65,7 @@ if __name__ == "__main__":
         BasicRecurrent(
             **standard_recurrent_settings,
             recurrent_units=400,
-            linear_units=[200],
-            name_formatter="{}_400_200_drop1_a",
+            feedforward_units=[200],
             dropouts=[1],
             recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
             training_curve_y_limit=1000
@@ -74,8 +73,7 @@ if __name__ == "__main__":
         BasicRecurrent(
             **standard_recurrent_settings,
             recurrent_units=500,
-            linear_units=[250],
-            name_formatter="{}_500_250_drop1_a",
+            feedforward_units=[250],
             dropouts=[1],
             recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
             training_curve_y_limit=1000
@@ -83,169 +81,56 @@ if __name__ == "__main__":
         BasicRecurrent(
             **standard_recurrent_settings,
             recurrent_units=400,
-            linear_units=[200, 100],
-            name_formatter="{}_400_200_100_drop1_a",
-            dropouts=[1],
+            feedforward_units=[200, 100],
+            dropouts=[1, 2],
             recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
             training_curve_y_limit=1000
         ),
         BasicRecurrent(
             **standard_recurrent_settings,
             recurrent_units=500,
-            linear_units=[250, 100],
-            name_formatter="{}_500_250_100_drop1_a",
-            dropouts=[1],
+            feedforward_units=[250, 100],
+            dropouts=[1, 2],
             recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
             training_curve_y_limit=1000
         ),
-        # AGAIN
+        # With static features
         BasicRecurrent(
             **standard_recurrent_settings,
+            use_bow=True,
             recurrent_units=400,
-            linear_units=[200],
-            name_formatter="{}_400_200_drop1_b",
-            dropouts=[1],
+            feedforward_units=[200],
+            dropouts=[-1, 1],
             recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
             training_curve_y_limit=1000
         ),
         BasicRecurrent(
             **standard_recurrent_settings,
+            use_bow=True,
             recurrent_units=500,
-            linear_units=[250],
-            name_formatter="{}_500_250_drop1_b",
-            dropouts=[1],
+            feedforward_units=[250],
+            dropouts=[-1, 1],
             recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
             training_curve_y_limit=1000
         ),
         BasicRecurrent(
             **standard_recurrent_settings,
+            use_bow=True,
             recurrent_units=400,
-            linear_units=[200, 100],
-            name_formatter="{}_400_200_100_drop1_b",
-            dropouts=[1],
+            feedforward_units=[200, 100],
+            dropouts=[-1, 1, 2],
             recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
             training_curve_y_limit=1000
         ),
         BasicRecurrent(
             **standard_recurrent_settings,
+            use_bow=True,
             recurrent_units=500,
-            linear_units=[250, 100],
-            name_formatter="{}_500_250_100_drop1_b",
-            dropouts=[1],
+            feedforward_units=[250, 100],
+            dropouts=[-1, 1, 2],
             recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
             training_curve_y_limit=1000
         ),
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=15,
-        #     name_formatter="{}_15_rnn",
-        # ),
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=20,
-        #     name_formatter="{}_20_rnn",
-        # ),
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=25,
-        #     name_formatter="{}_25_rnn",
-        # ),
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=30,
-        #     name_formatter="{}_30_rnn",
-        # ),
-        # # Dropout:
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=20,
-        #     name_formatter="{}_20_rnn_drop",
-        #     dropouts=[0]
-        # ),
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=25,
-        #     name_formatter="{}_25_rnn_drop",
-        #     dropouts=[0]
-        # ),
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=30,
-        #     name_formatter="{}_30_rnn_drop",
-        #     dropouts=[0]
-        # ),
-        # # Linear units
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=15,
-        #     name_formatter="{}_15_rnn_10_lin",
-        #     linear_units=[10],
-        # ),
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=20,
-        #     name_formatter="{}_20_rnn_10_lin",
-        #     linear_units=[10],
-        # ),
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=25,
-        #     name_formatter="{}_25_rnn_10_lin",
-        #     linear_units=[10],
-        # ),
-        # # Linear units and dropout
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=15,
-        #     name_formatter="{}_15_rnn_10_lin_drop",
-        #     linear_units=[10],
-        #     dropouts=[0]
-        # ),
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=20,
-        #     name_formatter="{}_20_rnn_10_lin_drop",
-        #     linear_units=[10],
-        #     dropouts=[0]
-        # ),
-        # BasicRecurrent(
-        #     **standard_recurrent_settings,
-        #     recurrent_units=25,
-        #     name_formatter="{}_25_rnn_10_lin_drop",
-        #     linear_units=[10],
-        #     dropouts=[0]
-        # ),
-        # # Baselines
-        # LogisticRegressionSK(
-        #     tensor_provider=the_tensor_provider,
-        #     use_bow=True,
-        #     use_embedsum=True,
-        #     tol=1e-7,
-        #     max_iter=500,
-        #     name_formatter="{}_bow_and_embedsum"
-        # ),
-        # LogisticRegressionSK(
-        #     tensor_provider=the_tensor_provider,
-        #     use_bow=True,
-        #     use_embedsum=False,
-        #     tol=1e-7,
-        #     max_iter=500,
-        #     name_formatter="{}_bow"
-        # ),
-        # LogisticRegressionSK(
-        #     tensor_provider=the_tensor_provider,
-        #     use_bow=False,
-        #     use_embedsum=True,
-        #     tol=1e-7,
-        #     max_iter=500,
-        #     name_formatter="{}_embedsum"
-        # ),
-        # SVMSK(
-        #     tensor_provider=the_tensor_provider,
-        #     use_bow=True,
-        #     use_embedsum=True,
-        #     name_formatter="{}_bow_and_embedsum"
-        # ),
     ]
 
     ################
@@ -257,7 +142,7 @@ if __name__ == "__main__":
         print("\n\n" + "-"*100)
         print("Model {}: {}\n".format(model_nr, a_model.name))
 
-        if n_runs == 1:
+        for run_nr in range(n_runs):
             # Run training on a single model
             single_training(
                 tensor_provider=the_tensor_provider,
@@ -267,22 +152,6 @@ if __name__ == "__main__":
                 base_path=base_path
             )
             model_paths.append(a_model.create_model_path(base_path))
-
-        else:
-            name_path_formatter = a_model.name + "_{}"
-
-            for run_nr in range(n_runs):
-                a_model.set_name(name_path_formatter.format(chr(ord("a") + run_nr)))
-
-                # Run training on a single model
-                single_training(
-                    tensor_provider=the_tensor_provider,
-                    model=a_model,
-                    test_programs=used_test_programs,
-                    training_programs=used_training_programs,
-                    base_path=base_path
-                )
-                model_paths.append(a_model.create_model_path(base_path))
 
     print("\nModels created at paths:")
     for path in model_paths:
