@@ -58,91 +58,106 @@ if __name__ == "__main__":
         shutil.rmtree(str(base_path))
 
     ################
-    # List of models
+    # MULTIPLE RUNS
 
-    # Models
-    model_list = [
-        BasicRecurrent(
-            **standard_recurrent_settings,
-            recurrent_units=400,
-            feedforward_units=[200],
-            dropouts=[1],
-            recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
-            training_curve_y_limit=1000
-        ),
-        BasicRecurrent(
-            **standard_recurrent_settings,
-            recurrent_units=500,
-            feedforward_units=[250],
-            dropouts=[1],
-            recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
-            training_curve_y_limit=1000
-        ),
-        BasicRecurrent(
-            **standard_recurrent_settings,
-            recurrent_units=400,
-            feedforward_units=[200, 100],
-            dropouts=[1, 2],
-            recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
-            training_curve_y_limit=1000
-        ),
-        BasicRecurrent(
-            **standard_recurrent_settings,
-            recurrent_units=500,
-            feedforward_units=[250, 100],
-            dropouts=[1, 2],
-            recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
-            training_curve_y_limit=1000
-        ),
-        # With static features
-        BasicRecurrent(
-            **standard_recurrent_settings,
-            use_bow=True,
-            recurrent_units=400,
-            feedforward_units=[200],
-            dropouts=[-1, 1],
-            recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
-            training_curve_y_limit=1000
-        ),
-        BasicRecurrent(
-            **standard_recurrent_settings,
-            use_bow=True,
-            recurrent_units=500,
-            feedforward_units=[250],
-            dropouts=[-1, 1],
-            recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
-            training_curve_y_limit=1000
-        ),
-        BasicRecurrent(
-            **standard_recurrent_settings,
-            use_bow=True,
-            recurrent_units=400,
-            feedforward_units=[200, 100],
-            dropouts=[-1, 1, 2],
-            recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
-            training_curve_y_limit=1000
-        ),
-        BasicRecurrent(
-            **standard_recurrent_settings,
-            use_bow=True,
-            recurrent_units=500,
-            feedforward_units=[250, 100],
-            dropouts=[-1, 1, 2],
-            recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
-            training_curve_y_limit=1000
-        ),
-    ]
-
-    ################
-
-    print("-"*50 + "\n" + "-" * 100 + "\n\t\t\t\tModel Comparison\n" + "-"*100 + "\n" + "-"*50)
-
+    # Paths for all models
     model_paths = []
-    for model_nr, a_model in enumerate(model_list):
-        print("\n\n" + "-"*100)
-        print("Model {}: {}\n".format(model_nr, a_model.name))
 
-        for run_nr in range(n_runs):
+    # Header
+    print("-" * 75)
+    print("-" * 100)
+    print("\t\t\t\tModel Comparison")
+    print("-" * 100)
+    print("-" * 75, end="\n\n")
+
+    # Runs
+    for run_nr in range(n_runs):
+        print("-" * 75)
+        print("Run {}".format(run_nr))
+        print("-" * 75, end="\n\n")
+
+        ####
+        # List of models
+
+        # Models
+        model_list = [
+            BasicRecurrent(
+                **standard_recurrent_settings,
+                recurrent_units=400,
+                feedforward_units=[200],
+                dropouts=[1],
+                recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
+                training_curve_y_limit=1000
+            ),
+            BasicRecurrent(
+                **standard_recurrent_settings,
+                recurrent_units=500,
+                feedforward_units=[250],
+                dropouts=[1],
+                recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
+                training_curve_y_limit=1000
+            ),
+            BasicRecurrent(
+                **standard_recurrent_settings,
+                recurrent_units=400,
+                feedforward_units=[200, 100],
+                dropouts=[1, 2],
+                recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
+                training_curve_y_limit=1000
+            ),
+            BasicRecurrent(
+                **standard_recurrent_settings,
+                recurrent_units=500,
+                feedforward_units=[250, 100],
+                dropouts=[1, 2],
+                recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
+                training_curve_y_limit=1000
+            ),
+            # With static features
+            BasicRecurrent(
+                **standard_recurrent_settings,
+                use_bow=True,
+                recurrent_units=400,
+                feedforward_units=[200],
+                dropouts=[-1, 1],
+                recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
+                training_curve_y_limit=1000
+            ),
+            BasicRecurrent(
+                **standard_recurrent_settings,
+                use_bow=True,
+                recurrent_units=500,
+                feedforward_units=[250],
+                dropouts=[-1, 1],
+                recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
+                training_curve_y_limit=1000
+            ),
+            BasicRecurrent(
+                **standard_recurrent_settings,
+                use_bow=True,
+                recurrent_units=400,
+                feedforward_units=[200, 100],
+                dropouts=[-1, 1, 2],
+                recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
+                training_curve_y_limit=1000
+            ),
+            BasicRecurrent(
+                **standard_recurrent_settings,
+                use_bow=True,
+                recurrent_units=500,
+                feedforward_units=[250, 100],
+                dropouts=[-1, 1, 2],
+                recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
+                training_curve_y_limit=1000
+            ),
+        ]
+
+        ################
+
+        for model_nr, a_model in enumerate(model_list):
+            print("\n\n" + "-"*100)
+            print("Model {}: {}\n".format(model_nr, a_model.name))
+
             # Run training on a single model
             single_training(
                 tensor_provider=the_tensor_provider,
