@@ -11,3 +11,5 @@
 /models/speller/__pycache__/recurrent_speller.cpython-36.pyc
 
 /matplotlibrc
+**/__pycache__/**
+/models/speller/__pycache__/**

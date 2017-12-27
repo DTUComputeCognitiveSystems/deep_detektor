@@ -212,12 +212,22 @@ class BasicRecurrent(DetektorModel):
             verbose += 2
 
         # Get training data
-        input_tensor = tensor_provider.load_concat_input_tensors(data_keys_or_idx=train_idx,
-                                                                 word_embedding=self.use_word_embedding,
-                                                                 char_embedding=self.use_char_embedding,
-                                                                 pos_tags=self.use_pos_tags)
+        input_tensor = tensor_provider.load_concat_input_tensors(
+            data_keys_or_idx=train_idx,
+            word_embedding=self.use_word_embedding,
+            char_embedding=self.use_char_embedding,
+            pos_tags=self.use_pos_tags
+        )
         input_lengths = tensor_provider.load_data_tensors(data_keys_or_idx=train_idx, word_counts=True)["word_counts"]
         train_idx = list(range(len(train_idx)))
+
+        # Get static features if wanted
+        static_input_tensor = None
+        if self.use_static_features:
+            static_input_tensor = tensor_provider.load_concat_input_tensors(
+                data_keys_or_idx=train_idx,
+                bow=True
+            )
 
         # Note learning rates
         if isinstance(self.learning_rate_progression, float):
@@ -258,6 +268,11 @@ class BasicRecurrent(DetektorModel):
                 self.learning_rate: c_learning_rate,
                 self.is_training: True
             }
+
+            # Add static features if needed
+            if self.use_static_features:
+                feed_dict = {**feed_dict,
+                             self.static_inputs: static_input_tensor[c_indices, :]}
 
             # Fetching
             fetch = [self.optimize_op, self.cost]
@@ -376,17 +391,28 @@ class BasicRecurrent(DetektorModel):
 
     def predict(self, tensor_provider, predict_idx, additional_fetch=None):
         # Get data
-        input_tensor = tensor_provider.load_concat_input_tensors(data_keys_or_idx=predict_idx,
-                                                                 word_embedding=self.use_word_embedding,
-                                                                 char_embedding=self.use_char_embedding,
-                                                                 pos_tags=self.use_pos_tags)
+        input_tensor = tensor_provider.load_concat_input_tensors(
+            data_keys_or_idx=predict_idx,
+            word_embedding=self.use_word_embedding,
+            char_embedding=self.use_char_embedding,
+            pos_tags=self.use_pos_tags
+        )
         input_lengths = tensor_provider.load_data_tensors(data_keys_or_idx=predict_idx, word_counts=True)["word_counts"]
+
+        # Get static features if wanted
+        static_input_tensor = None
+        if self.use_static_features:
+            static_input_tensor = tensor_provider.load_concat_input_tensors(
+                data_keys_or_idx=predict_idx,
+                bow=True
+            )
 
         # Feeds
         feed_dict = {
             self.recurrent_inputs: input_tensor,
             self.input_lengths: input_lengths,
-            self.is_training: False
+            self.is_training: False,
+            self.static_inputs: static_input_tensor
         }
 
         # Do prediction
@@ -436,3 +462,5 @@ if __name__ == "__main__":
 
     # Get true labels
     test_y = the_tensor_provider.load_labels(data_keys_or_idx=random_keys)
+
+    print(test_cost)
