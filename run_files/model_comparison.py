@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # Settings
     n_test_programs = 2
-    n_runs = 4
+    n_runs = 1
 
     # Select test-programs
     unique_programs = np.array(sorted(set(the_tensor_provider.accessible_annotated_program_ids)))
@@ -52,10 +52,6 @@ if __name__ == "__main__":
     )
 
     # LogisticRegressionSK
-
-    # Remove everything there is in base-directory
-    if base_path.is_dir():
-        shutil.rmtree(str(base_path))
 
     ################
     # MULTIPLE RUNS

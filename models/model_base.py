@@ -40,7 +40,7 @@ class DetektorModel:
         if auto_enumerate:
             new_path = Path(path.parent, path.name + "_01")
             nr = 1
-            while new_path.exists():
+            while new_path.is_dir():
                 nr += 1
                 new_path = Path(path.parent, path.name + "_{:02d}".format(nr))
 
