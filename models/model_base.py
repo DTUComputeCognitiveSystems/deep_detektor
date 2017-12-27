@@ -32,7 +32,7 @@ class DetektorModel:
         else:
             self.results_path = None
 
-    def create_model_path(self, results_path, use_settings=False):
+    def create_model_path(self, results_path, use_settings=True):
         if use_settings:
             return Path(results_path, self._generate_settings_file_name())
         return Path(results_path, self.name)
