@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 import pickle
 import tensorflow as tf
+import os
 
 import numpy as np
 
@@ -262,6 +263,12 @@ def single_training(tensor_provider, model,
 
 
 if __name__ == "__main__":
+    # Print TensorFlow GPU information
+    try:
+        print("GPU's visible: {}".format(os.environ["CUDA_VISIBLE_DEVICES"]))
+    except KeyError:
+        print("No GPU's visible.")
+
     # Initialize tensor-provider (data-source)
     the_tensor_provider = TensorProvider(verbose=True)
 
@@ -278,7 +285,7 @@ if __name__ == "__main__":
     #     n_jobs=-1
     # )
     n_test_programs = 2
-    n_batches = 2000
+    n_batches = 3000
     learning_rates = linear_geometric_curve(n=n_batches,
                                             starting_value=5e-4,
                                             end_value=1e-10,
@@ -289,11 +296,12 @@ if __name__ == "__main__":
         results_path=used_base_path,
         use_bow=True,
         n_batches=n_batches,
-        batch_size=64,
+        batch_size=128,
         learning_rate_progression=learning_rates,
-        recurrent_units=400,
-        feedforward_units=[200],
+        recurrent_units=500,
+        feedforward_units=[350],
         dropouts=[1],
+        dropout_rate=0.65,
         recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
         training_curve_y_limit=1000
     )

@@ -67,13 +67,13 @@ class DetektorModel:
                     settings_list.append("{}-{}".format(name, "|"))
                 else:
                     settings_list.append("{}-{}".format(name,
-                                                        "_".join([str(val).replace(".", "'") for val in value])))
+                                                        "-".join([str(val).replace(".", "'") for val in value])))
             elif isinstance(value, type):
                 settings_list.append("{}-{}".format(name, value.__name__))
             else:
                 raise ValueError("Can't handle type '{}' of field '{}'.".format(type(value).__name__, name))
 
-        settings_str = "_".join([self.name] + settings_list)
+        settings_str = "_".join([val for val in [self.name] + settings_list if val])
 
         return settings_str
 

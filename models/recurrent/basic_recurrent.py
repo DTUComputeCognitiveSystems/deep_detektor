@@ -34,7 +34,7 @@ class BasicRecurrent(DetektorModel):
                  display_step=1, results_path=None, learning_rate_progression=1e-3,
                  optimizer_class=tf.train.RMSPropOptimizer,
                  recurrent_neuron_type=tf.nn.rnn_cell.BasicRNNCell,
-                 name_formatter="{}", dropouts=(),
+                 name_formatter="{}", dropouts=(), dropout_rate=0.5,
                  training_curve_y_limit=None
                  ):
         """
@@ -69,6 +69,7 @@ class BasicRecurrent(DetektorModel):
         self.display_step = display_step
 
         # Settings
+        self.dropout_rate = dropout_rate
         self.use_char_embedding = char_embedding
         self.use_pos_tags = pos_tags
         self.use_word_embedding = word_embedding
@@ -134,7 +135,9 @@ class BasicRecurrent(DetektorModel):
 
             # Optional dropout
             if 0 in self.dropouts:
-                c_input = tf.contrib.layers.dropout(c_input, is_training=self.is_training)
+                c_input = tf.contrib.layers.dropout(c_input,
+                                                    is_training=self.is_training,
+                                                    keep_prob=self.dropout_rate)
 
             # Stack recurrent state and static features if needed
             if self.use_static_features:
@@ -161,7 +164,8 @@ class BasicRecurrent(DetektorModel):
 
                     if layer_nr in self.dropouts:
                         feedforward_activation = tf.contrib.layers.dropout(feedforward_activation,
-                                                                           is_training=self.is_training)
+                                                                           is_training=self.is_training,
+                                                                           keep_prob=self.dropout_rate)
 
                     self.feedforward_activations.append(
                         feedforward_activation
