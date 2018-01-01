@@ -27,8 +27,12 @@ Rules for ensuring runs of files:
         DRDetektorAutomaticFactChecking/    <- From data-service
 ```
 
-Programs can be run by standing in the main directory `deep_detektor` and running command  
+Programs can be run from a command prompt in the main directory `deep_detektor` and running command  
 ```
 $ PYTHONPATH=. python run_files/single_train.py
+```  
+alternatively
+```
+$ CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python run_files/single_train.py
 ```  
 where `run_files/single_train.py` can of cause be replaced by a different wanted script.
