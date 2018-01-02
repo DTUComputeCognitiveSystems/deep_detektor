@@ -103,9 +103,9 @@ class BasicDNN(DetektorModel):
                 layer_nr += 1
                 with tf.name_scope("ff_layer{}".format(layer_nr)):
                     feedforward_weights = tf.Variable(tf.truncated_normal([last_dimensions, n_units],
-                                                                          stddev=np.sqrt(n_units)),
+                                                                          stddev=1/np.sqrt(n_units)),
                                                       name="ff{}_m".format(layer_nr))
-                    feedforward_bias = tf.Variable(tf.truncated_normal([n_units], stddev=np.sqrt(n_units)),
+                    feedforward_bias = tf.Variable(tf.truncated_normal([n_units], stddev=1/np.sqrt(n_units)),
                                                    name="ff{}_b".format(layer_nr))
                     feedforward_product = tf.matmul(c_input, feedforward_weights)
                     feedforward_sum = feedforward_product + feedforward_bias
@@ -129,9 +129,9 @@ class BasicDNN(DetektorModel):
             # Output layer
             with tf.name_scope("output_layer"):
                 self._ffout_m = tf.Variable(tf.truncated_normal([last_dimensions, 2],
-                                                                stddev=np.sqrt(last_dimensions)),
+                                                                stddev=1/np.sqrt(last_dimensions)),
                                             name="ffout_m")
-                self._ffout_b = tf.Variable(tf.truncated_normal([1], stddev=1),
+                self._ffout_b = tf.Variable(tf.truncated_normal([2], stddev=1),
                                             name="ffout_b")
                 self._ffout_prod = tf.matmul(c_input, self._ffout_m)
                 self._ffout_a = self._ffout_prod + self._ffout_b
