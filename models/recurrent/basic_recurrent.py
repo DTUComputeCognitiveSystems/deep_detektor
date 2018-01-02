@@ -35,6 +35,7 @@ class BasicRecurrent(DetektorModel):
                  optimizer_class=tf.train.RMSPropOptimizer,
                  recurrent_neuron_type=tf.nn.rnn_cell.BasicRNNCell,
                  name_formatter="{}", dropouts=(), dropout_rate=0.5,
+                 l2_weight_decay=0,
                  training_curve_y_limit=None
                  ):
         """
@@ -79,6 +80,7 @@ class BasicRecurrent(DetektorModel):
         self.recurrent_units = recurrent_units
         self.optimizer_class = optimizer_class
         self.recurrent_neuron_type = recurrent_neuron_type
+        self.l2_weight_decay = l2_weight_decay
         self.dropouts = dropouts
 
         # Initialize super (and make automatic settings-summary)
@@ -90,9 +92,9 @@ class BasicRecurrent(DetektorModel):
         # Uninitialized fields
         self.num_recurrent_features = self.recurrent_inputs = self.input_lengths = self.truth = self._rec_cell = self.rec_cell_outputs = \
             self.rec_cell_state = self.feedforward_activations = self._ffout_m = self._ffout_b = self._ffout_prod = \
-            self._ffout_a = self.prediction = self.cost = self.learning_rate = self.optimize_op = \
+            self._ffout_a = self.prediction = self.regularized_cost = self.learning_rate = self.optimize_op = \
             self._summary_merged = self._summary_train_writer = self.optimizer = self.is_training = \
-            self.num_static_features = self.static_inputs = None
+            self.num_static_features = self.static_inputs = self.regularization_loss = self.cost = None
 
     def initialize_model(self, tensor_provider):
         # Get number of static features
@@ -189,9 +191,15 @@ class BasicRecurrent(DetektorModel):
             # Cost-function
             with tf.name_scope("Training"):
                 with tf.name_scope("Cost"):
+                    self.regularization_loss = self.l2_weight_decay * tf.add_n(
+                        [tf.nn.l2_loss(v) for v in tf.trainable_variables()
+                         if 'bias' not in v.name]) * 0.001
+
                     self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.truth,
                                                                                        logits=self._ffout_a))
-                    tf.summary.scalar('cost', self.cost)
+
+                    self.regularized_cost = self.cost + self.regularization_loss
+                    tf.summary.scalar('cost', self.regularized_cost)
                 # Gradient Descent
                 with tf.name_scope("Optimizer"):
                     self.learning_rate = tf.placeholder(shape=(), dtype=tf.float32, name="learning_rate")
@@ -201,7 +209,7 @@ class BasicRecurrent(DetektorModel):
                     self.optimizer = self.optimizer_class(self.learning_rate)
 
                     # Extract gradients for each variable
-                    grads_and_vars = self.optimizer.compute_gradients(self.cost)
+                    grads_and_vars = self.optimizer.compute_gradients(self.regularized_cost)
 
                     # Gradients summary
                     for grad, var in grads_and_vars:
@@ -306,7 +314,7 @@ class BasicRecurrent(DetektorModel):
                              self.static_inputs: static_input_tensor[c_indices, :]}
 
             # Fetching
-            fetch = [self.optimize_op, self.cost]
+            fetch = [self.optimize_op, self.regularized_cost]
             if self.results_path is not None:
                 fetch.append(self._summary_merged)
 
@@ -408,7 +416,7 @@ class BasicRecurrent(DetektorModel):
         }
 
         # Fetching
-        fetch = [self.cost, self.truth, self._ffout_a, self.prediction]
+        fetch = [self.regularized_cost, self.truth, self._ffout_a, self.prediction]
 
         # Run batch training
         res = self._sess.run(fetches=fetch,
