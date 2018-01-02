@@ -23,7 +23,7 @@ from datetime import datetime
 def single_training(tensor_provider, model,
                     test_split, training_split,
                     base_path, eval_functions=None, return_predictions=False,
-                    split_is_keys=False):
+                    split_is_keys=False, access_restricted_data=False):
     """
     :param TensorProvider tensor_provider: Class providing all data to models.
     :param DetektorModel model: Model-class to train and test.
@@ -83,7 +83,10 @@ def single_training(tensor_provider, model,
     # Otherwise use program-indices to get keys for training and test (the correct and default way)
     else:
         # Sentences keys
-        keys = list(sorted(tensor_provider.accessible_annotated_keys))
+        if not access_restricted_data:
+            keys = list(sorted(tensor_provider.accessible_annotated_keys))
+        else:
+            keys = list(sorted(tensor_provider.annotated_keys(access_restricted_data=True)))
 
         # Get program ids and number of programs
         program_ids = np.array(list(zip(*keys))[0])
@@ -285,7 +288,7 @@ if __name__ == "__main__":
     #     n_jobs=-1
     # )
     n_test_programs = 2
-    n_batches = 3000
+    n_batches = 500
     learning_rates = linear_geometric_curve(n=n_batches,
                                             starting_value=5e-4,
                                             end_value=1e-10,
@@ -296,10 +299,11 @@ if __name__ == "__main__":
         results_path=used_base_path,
         use_bow=True,
         n_batches=n_batches,
-        batch_size=128,
+        batch_size=64,
         learning_rate_progression=learning_rates,
-        recurrent_units=500,
-        feedforward_units=[350],
+        recurrent_units=400,
+        feedforward_units=[200],
+        l2_weight_decay=1e-3,
         dropouts=[1],
         dropout_rate=0.65,
         recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
