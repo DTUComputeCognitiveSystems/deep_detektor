@@ -154,19 +154,19 @@ class TensorProvider:
     def off_limits_programs(self):
         return 8720741, 9284846, 8665813
 
-    @property
-    def program_ids(self):
-        raise ValueError("You are not allowed to access this data!!")
-        # return self._program_ids
+    def program_ids(self, access_restricted_data=False):
+        if not access_restricted_data:
+            raise ValueError("You are not allowed to access this data!!")
+        return self._program_ids
 
     @property
     def accessible_program_ids(self):
         return [val for val in self._program_ids if val not in self.off_limits_programs]
 
-    @property
-    def annotated_program_ids(self):
-        raise ValueError("You are not allowed to access this data!!")
-        # return self._annotated_program_ids
+    def annotated_program_ids(self, access_restricted_data=False):
+        if not access_restricted_data:
+            raise ValueError("You are not allowed to access this data!!")
+        return self._annotated_program_ids
 
     @property
     def accessible_annotated_program_ids(self):
@@ -175,19 +175,19 @@ class TensorProvider:
     ####
     # Keys
 
-    @property
-    def keys(self):
-        raise ValueError("You are not allowed to access this data!!")
-        # return self._keys
+    def keys(self, access_restricted_data=False):
+        if not access_restricted_data:
+            raise ValueError("You are not allowed to access this data!!")
+        return self._keys
 
     @property
     def accessible_keys(self):
         return [val for val in self._keys if val[0] not in self.off_limits_programs]
 
-    @property
-    def annotated_keys(self):
-        raise ValueError("You are not allowed to access this data!!")
-        # return self._annotated_keys
+    def annotated_keys(self, access_restricted_data=False):
+        if not access_restricted_data:
+            raise ValueError("You are not allowed to access this data!!")
+        return self._annotated_keys
 
     @property
     def accessible_annotated_keys(self):
