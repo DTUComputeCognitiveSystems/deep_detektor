@@ -76,7 +76,7 @@ class BasicDNN(DetektorModel):
         self.truth = self.feedforward_activations = self._ffout_m = self._ffout_b = self._ffout_prod = \
             self._ffout_a = self.prediction = self.cost = self.learning_rate = self.optimize_op = \
             self._summary_merged = self._summary_train_writer = self.optimizer = self.is_training = \
-            self.num_features = None
+            self.num_features = self.inputs = None
 
     def initialize_model(self, tensor_provider):
         # Get number of static features
@@ -119,9 +119,9 @@ class BasicDNN(DetektorModel):
                     self.feedforward_activations.append(
                         feedforward_activation
                     )
-                print("layer_nr %i" % layer_nr)
-                print("size of feed_forward weights (%i,%i)" %(feedforward_weights.shape[0], feedforward_weights.shape[1]))
-                print(feedforward_activation.shape)
+                # print("layer_nr %i" % layer_nr)
+                # print("size of feed_forward weights (%i,%i)" %(feedforward_weights.shape[0], feedforward_weights.shape[1]))
+                # print(feedforward_activation.shape)
                 # Next layer
                 c_input = self.feedforward_activations[-1]
                 last_dimensions = n_units

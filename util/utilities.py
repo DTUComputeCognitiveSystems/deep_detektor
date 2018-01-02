@@ -5,6 +5,25 @@ from time import sleep
 import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
+import tensorflow as tf
+
+
+def tf_number_of_trainable_parameters():
+    total_parameters = 0
+
+    # Go through all trainable variables
+    for variable in tf.trainable_variables():
+
+        # Get shape
+        shape = variable.get_shape()
+
+        # Multiply all dimensions
+        variable_parameters = np.prod([dim.value for dim in shape])
+
+        # Add to total number of parameters
+        total_parameters += variable_parameters
+
+    return total_parameters
 
 
 def get_dir(path):

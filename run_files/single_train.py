@@ -17,7 +17,8 @@ from models.recurrent.basic_recurrent import BasicRecurrent
 from models.dnn import BasicDNN
 from util.learning_rate_utilities import linear_geometric_curve
 from util.tensor_provider import TensorProvider
-from util.utilities import ensure_folder, save_fig, redirect_stdout_to_file, close_stdout_file, SDataArray
+from util.utilities import ensure_folder, save_fig, redirect_stdout_to_file, close_stdout_file, SDataArray, \
+    tf_number_of_trainable_parameters
 from datetime import datetime
 
 
@@ -129,6 +130,11 @@ def single_training(tensor_provider, model,
 
     # Initialize model
     model.initialize_model(tensor_provider=tensor_provider)
+
+    # Number of parameters
+    if model.save_type == "tf":
+        with model._tf_graph.as_default():
+            print("Number of trainable parameters: {}".format(tf_number_of_trainable_parameters()))
 
     # Fit model
     model.fit(tensor_provider=tensor_provider,
@@ -289,33 +295,36 @@ if __name__ == "__main__":
     #     n_jobs=-1
     # )
     n_test_programs = 2
-    n_batches = 500
+    n_batches = 3000
     learning_rates = linear_geometric_curve(n=n_batches,
                                             starting_value=5e-4,
                                             end_value=1e-10,
                                             geometric_component=3. / 4,
                                             geometric_end=5)
-    #a_model = BasicRecurrent(
-    #    tensor_provider=the_tensor_provider,
-    #    results_path=used_base_path,
-    #    use_bow=True,
-    #    n_batches=n_batches,
-    #    batch_size=128,
-    #    learning_rate_progression=learning_rates,
-    #    recurrent_units=500,
-    #    feedforward_units=[350],
-    #    dropouts=[1],
-    #    dropout_rate=0.65,
-    #    recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
-    #    training_curve_y_limit=1000
-    #)
-    a_model = BasicDNN(tensor_provider=the_tensor_provider,
-                       units=[50,20],
-                       n_batches=n_batches,
-                       learning_rate_progression=learning_rates,
-                       dropouts=[],
-                       dropout_rate=0.5,
-                       results_path=used_base_path)
+    a_model = BasicRecurrent(
+        tensor_provider=the_tensor_provider,
+        results_path=used_base_path,
+        use_bow=True,
+        n_batches=n_batches,
+        batch_size=64,
+        learning_rate_progression=learning_rates,
+        recurrent_units=400,
+        feedforward_units=[200],
+        dropouts=[1],
+        dropout_rate=0.65,
+        l2_weight_decay=1e-6,
+        recurrent_neuron_type=tf.nn.rnn_cell.GRUCell,
+        training_curve_y_limit=1000
+    )
+    # a_model = BasicDNN(
+    #     tensor_provider=the_tensor_provider,
+    #     units=[50, 20],
+    #     n_batches=n_batches,
+    #     learning_rate_progression=learning_rates,
+    #     dropouts=[],
+    #     dropout_rate=0.5,
+    #     results_path=used_base_path
+    # )
     # a_model = LogisticRegression(
     #     tensor_provider=the_tensor_provider,
     # )
