@@ -18,12 +18,12 @@ class BasicDNN(DetektorModel):
     def _attribute_name_list(self):
         return [
             ("use_bow", "BOW"),
-            ("use_embedsum", "EmbeddingSum")
+            ("use_embedsum", "EmbeddingSum"),
             ("units", "Units"),
             ("dropouts", "drop"),
         ]
 
-    def __init__(self, tensor_provider, units=(2,2),
+    def __init__(self, tensor_provider, units=[2,2],
                  use_bow=True, use_embedsum=False,
                  n_batches=10, batch_size=64,
                  display_step=1, results_path=None, learning_rate_progression=1e-3,
@@ -62,7 +62,6 @@ class BasicDNN(DetektorModel):
         self.dropout_rate = dropout_rate
         self.use_bow = use_bow
         self.use_embedsum = use_embedsum
-        self.use_static_features = any([self.use_bow])
         self.units = units
         self.optimizer_class = optimizer_class
         self.dropouts = dropouts
@@ -91,7 +90,7 @@ class BasicDNN(DetektorModel):
             self.inputs = tf.placeholder(tf.float32, [None, self.num_features], name="features")
             self.truth = tf.placeholder(tf.float32, [None, 2], name="truth")
 
-            # Dropout on static inputs
+            # Dropout directly on inputs
             if -1 in self.dropouts:
                 self.inputs = tf.contrib.layers.dropout(self.inputs, is_training=self.is_training)
 
@@ -120,7 +119,9 @@ class BasicDNN(DetektorModel):
                     self.feedforward_activations.append(
                         feedforward_activation
                     )
-
+                print("layer_nr %i" % layer_nr)
+                print("size of feed_forward weights (%i,%i)" %(feedforward_weights.shape[0], feedforward_weights.shape[1]))
+                print(feedforward_activation.shape)
                 # Next layer
                 c_input = self.feedforward_activations[-1]
                 last_dimensions = n_units
@@ -338,7 +339,7 @@ class BasicDNN(DetektorModel):
 
     @classmethod
     def _class_name(cls):
-        return "BasicRecurrent"
+        return "BasicDNN"
 
     def predict(self, tensor_provider, predict_idx, additional_fetch=None):
         # Get data
