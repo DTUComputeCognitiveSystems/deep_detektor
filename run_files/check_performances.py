@@ -14,10 +14,10 @@ pd.set_option('colheader_justify', 'left')
 
 # Results path
 # main_dir = Path(ProjectPaths.results, "single_train")
-main_dir = Path(ProjectPaths.results, "model_comparison")
+main_dir = Path(ProjectPaths.results, "final_model_comparison_backup_2")
 
 # Get paths
-paths = list(main_dir.glob("*"))
+paths = [path for path in main_dir.glob("*") if path.is_dir()]
 
 # Go through paths
 table = DataFrame()
@@ -48,6 +48,9 @@ for path in paths:
             value = results_train.get(attr)
             table_row_data.append(value if value is not None else "-")
 
+        table_row_names.append("tr_" + "TPR")
+        table_row_data.append(results_train.get("TP") / (results_train.get("TP") + results_train.get("FN")))
+
     except FileNotFoundError:
         pass
 
@@ -63,6 +66,9 @@ for path in paths:
             value = results_test.get(attr)
             table_row_data.append(value if value is not None else "-")
 
+        table_row_names.append("te_" + "TPR")
+        table_row_data.append(results_test.get("TP") / (results_test.get("TP") + results_test.get("FN")))
+
     except FileNotFoundError:
         pass
 
@@ -70,17 +76,17 @@ for path in paths:
     try:
         settings = pickle.load(Path(path, "settings.p").open("rb"))  # type: dict
 
-        table_row_names.append("test_programs")
-        val = settings.get("test_programs", None)
-        if isinstance(val, (list, tuple, np.ndarray)):
-            val = len(val)
-        table_row_data.append(val)
-
-        table_row_names.append("training_programs")
-        val = settings.get("training_programs", None)
-        if isinstance(val, (list, tuple, np.ndarray)):
-            val = len(val)
-        table_row_data.append(val)
+        # table_row_names.append("test_programs")
+        # val = settings.get("test_programs", None)
+        # if isinstance(val, (list, tuple, np.ndarray)):
+        #     val = len(val)
+        # table_row_data.append(val)
+        #
+        # table_row_names.append("training_programs")
+        # val = settings.get("training_programs", None)
+        # if isinstance(val, (list, tuple, np.ndarray)):
+        #     val = len(val)
+        # table_row_data.append(val)
 
     except FileNotFoundError:
         pass
@@ -139,4 +145,16 @@ for path in paths:
 
 # Print table
 print(table.to_string())
+
+print("\n\nLatex:\n")
+scores = ["AreaUnderROC", "F1", "TPR"]
+rows = sorted(list(table.iterrows()))
+for name, row in rows:
+    row_str = name
+
+    for val in scores:
+        row_str += " & \\perfsplit{{{:.2f}}}{{{:.2f}}}"\
+            .format(row.get("tr_" + val), row.get("te_" + val))
+    print(row_str + "\\\\")
+
 
